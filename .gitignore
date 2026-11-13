@@ -8,7 +8,6 @@ api/dist/
 .env
 .env.*
 !.env.example
-*.local.bicepparam
 api/local.settings.json
 
 # Azure Functions / Static Web Apps local tooling
