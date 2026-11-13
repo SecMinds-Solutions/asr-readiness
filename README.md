@@ -7,8 +7,7 @@ Sign in with your Entra account, and ASR Readiness reads your tenant's ASR audit
 and Intune ASR policies, gives every rule a verdict, and suggests exclusions and a
 ready-made Intune policy that you review and deploy yourself.
 
-> **Status:** design phase. The domain model and decisions are written down; there is no
-> application code yet.
+> **Status:** in development. The app skeleton is live; sign-in and the analysis follow.
 
 ## How it works
 
@@ -27,7 +26,8 @@ ready-made Intune policy that you review and deploy yourself.
   to what your own roles allow.
 - **Stored about you:** your tenant ID, username, first and last name, email address, and
   whether you agreed to hear from SecMinds about other products.
-- **Hosted in the EU** (Azure, West Europe).
+- **Hosted on Azure.** The web page is served from Azure's global network; the backend that
+  stores the User record runs in West Europe.
 
 ## Requirements
 
@@ -46,6 +46,17 @@ MSPs can analyse customer tenants through GDAP.
 - [`docs/adr/`](docs/adr/): architecture decisions
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): how to report bugs, ideas and vulnerabilities
 
+## Development
+
+```bash
+npm ci
+npm run dev
+```
+
+Checks: `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`.
+
 ## License
 
-[MIT](LICENSE)
+The source code is licensed under the [MIT licence](LICENSE). SecMinds logos, the SecMinds
+name and other brand assets (including the logo and favicons in this repository) are not
+covered by the MIT licence and may not be used without permission.
