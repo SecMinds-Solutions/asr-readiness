@@ -1,0 +1,24 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+api/dist/
+
+# Local settings and secrets
+.env
+.env.*
+!.env.example
+*.local.bicepparam
+api/local.settings.json
+
+# Azure Functions / Static Web Apps local tooling
+.azurite/
+__azurite_*
+
+# Editor and OS files
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+.DS_Store

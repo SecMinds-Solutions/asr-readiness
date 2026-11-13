@@ -1,0 +1,51 @@
+# ASR Readiness
+
+A free, open-source community tool that helps organisations move Microsoft Defender
+Attack Surface Reduction (ASR) rules from audit mode to block mode safely.
+
+Sign in with your Entra account, and ASR Readiness reads your tenant's ASR audit events
+and Intune ASR policies, gives every rule a verdict, and suggests exclusions and a
+ready-made Intune policy that you review and deploy yourself.
+
+> **Status:** design phase. The domain model and decisions are written down; there is no
+> application code yet.
+
+## How it works
+
+- **Verdict per rule:** Ready to block, Ready with exclusions, Not ready, or No evidence,
+  based on the last 30 days of audit events and with the share of devices it covers.
+- **Suggested exclusions:** per rule, never in a location where ordinary users can write files.
+- **Suggested policy:** an Intune settings catalog ASR policy as a JSON file to import.
+  The tool never changes anything in your tenant.
+
+## Trust
+
+- **Your security data never leaves your browser.** The analysis runs in the browser with
+  your own delegated token; nothing about it is sent to or stored by SecMinds.
+- **Read-only, delegated permissions only:** `ThreatHunting.Read.All` and
+  `DeviceManagementConfiguration.Read.All`, used only while you are signed in and limited
+  to what your own roles allow.
+- **Stored about you:** your tenant ID, username, first and last name, email address, and
+  whether you agreed to hear from SecMinds about other products.
+- **Hosted in the EU** (Azure, West Europe).
+
+## Requirements
+
+- Microsoft Defender for Endpoint Plan 2 (also included in Microsoft 365 E5 and the
+  Defender Suite add-on for Business Premium). Defender for Business is not supported
+  because it has no advanced hunting; see [ADR-0001](docs/adr/0001-defender-for-endpoint-plan-2-only.md).
+- A one-time admin consent for the app in your tenant.
+- A Defender role that allows advanced hunting and an Intune role that can read
+  configuration policies.
+
+MSPs can analyse customer tenants through GDAP.
+
+## Documentation
+
+- [`CONTEXT.md`](CONTEXT.md): the domain language
+- [`docs/adr/`](docs/adr/): architecture decisions
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): how to report bugs, ideas and vulnerabilities
+
+## License
+
+[MIT](LICENSE)
