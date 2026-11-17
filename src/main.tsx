@@ -32,7 +32,7 @@ function signInSetup(config: AuthConfig): SignInSetup {
     userRecord: createUserRecordClient(() => client.userRecordToken()),
     checkReadiness: createReadinessCheck(graph, () => client.refreshGraphToken()),
     loadRuleOverview: async () => {
-      const [policies, coverage] = await Promise.all([fetchIntunePolicies(graph), fetchCoverage()]);
+      const [policies, coverage] = await Promise.all([fetchIntunePolicies(graph), fetchCoverage(graph)]);
       return { modes: ruleModesFromPolicies(policies), coverage };
     },
     loadAuditEvents: () => fetchAuditEvents(graph),

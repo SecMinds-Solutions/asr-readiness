@@ -41,3 +41,21 @@ export const AUDIT_EVENT_GROUPS_QUERY =
   `${auditEvents} | summarize Events = count(), Devices = dcount(DeviceId) ${byGroup}` +
   ' | order by ActionType asc, Events desc | extend Rank = row_number(1, prev(ActionType) != ActionType)' +
   ` | where Rank <= ${AUDIT_EVENT_GROUPS_PER_RULE} | project-away Rank`;
+
+/** Devices that have not reported in this many days, such as offboarded ones, are not counted. */
+export const RULE_MODE_REPORT_DAYS = 7;
+
+/**
+ * Per ASR rule and Rule mode: how many devices report it, from the latest report of each device.
+ * AdditionalFields.AsrConfigurationStates holds one key per rule (the catalogue's configurationKey)
+ * with its Rule mode on the device, such as Off, Audit or Block, or null. After arg_max there is
+ * one row per device and rule, so count() is exact; devices without the field are left out.
+ */
+export const ASR_RULE_MODES_QUERY =
+  'DeviceTvmInfoGathering' +
+  ` | where Timestamp > ago(${RULE_MODE_REPORT_DAYS}d)` +
+  ' | summarize arg_max(Timestamp, AdditionalFields) by DeviceId' +
+  ' | extend States = parse_json(tostring(AdditionalFields.AsrConfigurationStates))' +
+  ' | where gettype(States) == "dictionary"' +
+  ' | mv-expand kind=array State = States' +
+  ' | summarize Devices = count() by Rule = tostring(State[0]), Mode = tostring(State[1])';

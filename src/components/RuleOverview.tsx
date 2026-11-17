@@ -66,15 +66,15 @@ export function RuleOverviewView({ overview: { modes, coverage } }: { overview: 
     <Card title="ASR rules">
       {coverage === null && (
         <Alert tone="info" title="Coverage not available">
-          Coverage is not available yet: this version cannot read on how many devices each rule is in Audit mode.
+          Coverage is not available: no device reports its ASR Rule modes to advanced hunting yet.
         </Alert>
       )}
-      {coverage !== null && coverage.devicesWithoutIntune > 0 && (
-        <Alert tone="warning" title="Devices without Intune management">
-          {devicesText(coverage.devicesWithoutIntune, coverage.devices)} are not managed through Intune. Their Rule modes
-          come from elsewhere, such as Group Policy or Configuration Manager, and an Intune policy does not reach them.
-        </Alert>
-      )}
+      <Alert tone="info" title="Devices without Intune management">
+        Coverage counts every device that reports its Rule modes, whatever manages it. ASR Readiness cannot tell which of
+        them Intune manages, so it cannot show the devices without Intune management separately: its read permissions do
+        not show that. On such devices an Intune policy has no effect, and their Rule modes come from elsewhere, such as
+        Group Policy or Configuration Manager.
+      </Alert>
       {conflicts > 0 && (
         <Alert tone="warning" title="Conflicting Intune policies">
           {conflicts} ASR {conflicts === 1 ? 'rule has a conflict' : 'rules have a conflict'}: Intune policies assigned to the
@@ -82,7 +82,9 @@ export function RuleOverviewView({ overview: { modes, coverage } }: { overview: 
           neither until the policies agree.
         </Alert>
       )}
-      {(modes.unassignedPolicies.length > 0 || modes.unrecognisedSettings.length > 0) && (
+      {(modes.unassignedPolicies.length > 0 ||
+        modes.unrecognisedSettings.length > 0 ||
+        (coverage?.unrecognisedRules.length ?? 0) > 0) && (
         <Alert tone="info" title="Not counted">
           {modes.unassignedPolicies.length > 0 && (
             <p className="app-text">
@@ -95,12 +97,18 @@ export function RuleOverviewView({ overview: { modes, coverage } }: { overview: 
               {modes.unrecognisedSettings.map(({ policy, setting }) => `${setting} (${policy})`).join(', ')}.
             </p>
           )}
+          {coverage && coverage.unrecognisedRules.length > 0 && (
+            <p className="app-text">
+              ASR rules in advanced hunting this version does not recognise: {coverage.unrecognisedRules.join(', ')}.
+            </p>
+          )}
         </Alert>
       )}
       <p className="app-text app-hint">
         Rule modes come from Intune settings catalog policies (Endpoint security › Attack surface reduction, and Settings
         catalog). ASR rules set by older Endpoint protection profiles, security baselines or custom OMA-URI profiles are not
-        read yet, so a rule set only there shows as Not configured.
+        read yet, so a rule set only there shows as Not configured. Coverage comes from the Rule mode each device reports to
+        advanced hunting in the last 7 days, whatever set it.
       </p>
       <Table
         caption="Rule mode from the Tenant's Intune policies; Coverage is the devices on which the rule is in Audit mode"
@@ -125,7 +133,7 @@ export function LoadingRuleOverview() {
   return (
     <div className="app-row">
       <Spinner label="Reading ASR rules" />
-      <p className="body app-text">Reading the Intune policies…</p>
+      <p className="body app-text">Reading the Intune policies and the Rule modes devices report…</p>
     </div>
   );
 }

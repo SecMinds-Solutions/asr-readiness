@@ -11,7 +11,7 @@ One of Microsoft Defender's Attack Surface Reduction rules, identified by its GU
 _Avoid_: policy, setting
 
 **Rule mode**:
-How an ASR rule is configured in a tenant: Not configured, Disabled, Audit, Warn or Block.
+How an ASR rule is configured in a tenant, or runs on a device: Not configured, Disabled, Audit, Warn or Block.
 _Avoid_: state, action
 
 **Conflict**:
@@ -82,7 +82,7 @@ _Avoid_: customer, organisation
 The Entra tenant a User's own account belongs to. It is the tenant stored with a User; Tenants they analysed are not stored.
 
 **Coverage**:
-The share of a Tenant's devices on which a rule is in Audit mode, shown with every Verdict because a Verdict only speaks for those devices.
+The share of a Tenant's devices on which a rule is in Audit mode, shown with every Verdict because a Verdict only speaks for those devices. Counted over the devices that report their Rule modes to Defender for Endpoint, whatever configured them.
 
 **Supported tenant**:
 A Tenant licensed for Microsoft Defender for Endpoint Plan 2, which provides the advanced hunting data an Analysis needs.

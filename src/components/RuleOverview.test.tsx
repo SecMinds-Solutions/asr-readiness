@@ -11,7 +11,7 @@ function overview(overrides: Partial<RuleOverview['coverage']> = {}, policies = 
 ]): RuleOverview {
   return {
     modes: ruleModesFromPolicies(policies),
-    coverage: { devices: 40, auditDevices: { [ADOBE]: 12 }, devicesWithoutIntune: 0, ...overrides },
+    coverage: { devices: 40, auditDevices: { [ADOBE]: 12 }, unrecognisedRules: [], ...overrides },
   };
 }
 
@@ -62,17 +62,23 @@ describe('RuleOverviewView', () => {
     expect(container.querySelector('.sm-tone-danger')).toBeNull();
   });
 
-  it('warns about devices without Intune management, with their number', () => {
-    render(<RuleOverviewView overview={overview({ devicesWithoutIntune: 7 })} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('7 of 40 devices are not managed through Intune');
-  });
-
   it('lists the Rule modes and says Coverage is not available when it could not be read', () => {
     render(<RuleOverviewView overview={{ modes: overview().modes, coverage: null }} />);
     expect(screen.getAllByRole('row')).toHaveLength(1 + 19);
     expect(within(rowOf('Block Adobe Reader from creating child processes')).getByText('Audit')).toBeInTheDocument();
     expect(screen.getAllByText('Not available')).toHaveLength(19);
-    expect(screen.getByRole('status')).toHaveTextContent(/Coverage is not available yet/);
+    expect(screen.getByText(/no device reports its ASR Rule modes/)).toBeInTheDocument();
+  });
+
+  it('says Coverage includes devices whatever manages them, and that those without Intune cannot be shown separately', () => {
+    render(<RuleOverviewView overview={overview()} />);
+    expect(screen.getByText(/Coverage counts every device that reports its Rule modes, whatever manages it/)).toBeInTheDocument();
+    expect(screen.getByText(/cannot show the devices without Intune management separately/)).toBeInTheDocument();
+  });
+
+  it('lists ASR rules from advanced hunting it does not recognise', () => {
+    render(<RuleOverviewView overview={overview({ unrecognisedRules: ['SomethingNew'] })} />);
+    expect(screen.getByText(/ASR rules in advanced hunting this version does not recognise: SomethingNew/)).toBeInTheDocument();
   });
 
   it('says which policy sources are not read', () => {
@@ -80,7 +86,7 @@ describe('RuleOverviewView', () => {
     expect(screen.getByText(/Endpoint protection profiles, security baselines or custom OMA-URI profiles are not read/)).toBeInTheDocument();
   });
 
-  it('does not warn when every device is managed through Intune and nothing conflicts', () => {
+  it('does not warn when nothing conflicts', () => {
     render(<RuleOverviewView overview={overview()} />);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -94,7 +100,7 @@ describe('RuleOverviewView', () => {
         ])}
       />,
     );
-    const note = screen.getByRole('status');
+    const note = screen.getAllByRole('status').find((element) => element.textContent?.includes('Not counted'));
     expect(note).toHaveTextContent('Draft');
     expect(note).toHaveTextContent('Future');
   });

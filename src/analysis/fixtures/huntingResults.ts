@@ -26,3 +26,13 @@ export const groupsResult = (
   ],
   results: rows.map((row) => ({ ApplicationFolder: FOLDER, ...row })),
 });
+
+/** The answer of ASR_RULE_MODES_QUERY: devices per AsrConfigurationStates key and value ("" for null). */
+export const ruleModesResult = (...rows: { Rule: string; Mode: string; Devices: number }[]) => ({
+  schema: [
+    { Name: 'Rule', Type: 'String' },
+    { Name: 'Mode', Type: 'String' },
+    { Name: 'Devices', Type: 'Int64' },
+  ],
+  results: rows,
+});

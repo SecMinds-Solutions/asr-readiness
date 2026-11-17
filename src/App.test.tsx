@@ -37,7 +37,7 @@ function fakeUserRecord(stored: ContactConsent | null = storedConsent): UserReco
 
 const emptyOverview: RuleOverview = {
   modes: ruleModesFromPolicies([]),
-  coverage: { devices: 12, auditDevices: {}, devicesWithoutIntune: 0 },
+  coverage: { devices: 12, auditDevices: {}, unrecognisedRules: [] },
 };
 
 function setup(
@@ -331,7 +331,7 @@ describe('App: ASR rules', () => {
 
   it('says it is reading the ASR rules', async () => {
     render(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
-    expect(await screen.findByText('Reading the Intune policies…')).toBeInTheDocument();
+    expect(await screen.findByText('Reading the Intune policies and the Rule modes devices report…')).toBeInTheDocument();
   });
 
   it('shows why the ASR rules could not be read and lets the User try again', async () => {

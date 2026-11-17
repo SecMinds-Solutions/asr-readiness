@@ -6,8 +6,8 @@ export interface Coverage {
   devices: number;
   /** Per ASR rule GUID: devices on which the rule is in Audit mode. */
   auditDevices: Record<string, number>;
-  /** Devices not managed through Intune, so Intune policies do not reach them. */
-  devicesWithoutIntune: number;
+  /** AsrConfigurationStates keys this version does not know. */
+  unrecognisedRules: string[];
 }
 
 /** Every ASR rule with its Rule mode and Coverage. */

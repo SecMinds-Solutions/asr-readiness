@@ -1,4 +1,4 @@
-import { ASR_RULES, INTUNE_ASR_SETTING, ruleByAuditActionType, ruleByIntuneSetting } from './asrRules';
+import { ASR_RULES, INTUNE_ASR_SETTING, ruleByAuditActionType, ruleByConfigurationKey, ruleByIntuneSetting } from './asrRules';
 
 // Checked on 2026-11-17 against Microsoft's ASR rules reference (rule name as "Microsoft Intune
 // name", and its GUID) and the Intune settings catalog IDs Microsoft365DSC generates from Graph.
@@ -73,5 +73,36 @@ describe('ASR_RULES', () => {
   it('finds a rule by its Intune setting', () => {
     expect(ruleByIntuneSetting(`${INTUNE_ASR_SETTING}_blockrebootingmachineinsafemode`)?.guid).toBe('33ddedf1-c6e0-47cb-833e-de6133960387');
     expect(ruleByIntuneSetting(`${INTUNE_ASR_SETTING}_somethingelse`)).toBeUndefined();
+  });
+
+  // The keys of AdditionalFields.AsrConfigurationStates in advanced hunting's DeviceTvmInfoGathering,
+  // as a Tenant reported them on 2026-11-17 (all 19, one per rule).
+  it('knows the AsrConfigurationStates key of every ASR rule', () => {
+    expect(Object.fromEntries(ASR_RULES.map((rule) => [rule.configurationKey, rule.guid]))).toEqual({
+      VulnerableSignedDriver: '56a863a9-875e-4185-98a7-b882c64b5ce5',
+      LsassCredentialTheft: '9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2',
+      PersistenceThroughWmi: 'e6db77e5-3df2-4cf1-b95a-636979351e5b',
+      AdobeReaderChildProcess: '7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c',
+      OfficeChildProcess: 'd4f940ab-401b-4efc-aadc-ad5f3c50688a',
+      ExecutableEmailContent: 'be9ba2d9-53ea-4cdc-84e5-9b1eeee46550',
+      UntrustedExecutable: '01443614-cd74-433a-b99e-2ecdc07bfc25',
+      ObfuscatedScript: '5beb7efe-fd9a-4556-801d-275e5ffc04cc',
+      ScriptExecutableDownload: 'd3e037e1-3eb8-44c8-a917-57927947596d',
+      ExecutableOfficeContent: '3b576869-a4ec-4529-8536-b80a7769e899',
+      OfficeProcessInjection: '75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84',
+      OfficeCommAppChildProcess: '26190899-1602-49e8-8b27-eb1d0a1ce869',
+      PsexecWmiChildProcess: 'd1e49aac-8f56-4280-b9ba-993a6d77406c',
+      BlockSafeModeReboot: '33ddedf1-c6e0-47cb-833e-de6133960387',
+      UntrustedUsbProcess: 'b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4',
+      BlockCopiedOrImpersonatedSystemTools: 'c0033c00-d16d-4114-a5a0-dc9b3a7d2ceb',
+      BlockWebshellCreation: 'a8f5898e-1dc8-49a9-9878-85004b8a61e6',
+      OfficeMacroWin32ApiCalls: '92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b',
+      Ransomware: 'c1db55ab-c21a-4637-bb3f-a12568109d35',
+    });
+  });
+
+  it('finds a rule by its AsrConfigurationStates key', () => {
+    expect(ruleByConfigurationKey('Ransomware')?.guid).toBe('c1db55ab-c21a-4637-bb3f-a12568109d35');
+    expect(ruleByConfigurationKey('SomethingNew')).toBeUndefined();
   });
 });

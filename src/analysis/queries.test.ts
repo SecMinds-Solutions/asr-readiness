@@ -1,5 +1,5 @@
 import { RULES_IN_ADVANCED_HUNTING } from './asrRules';
-import { AUDIT_EVENT_GROUPS_PER_RULE, AUDIT_EVENT_GROUPS_QUERY, AUDIT_EVENT_TOTALS_QUERY, auditEventFilter } from './queries';
+import { ASR_RULE_MODES_QUERY, AUDIT_EVENT_GROUPS_PER_RULE, AUDIT_EVENT_GROUPS_QUERY, AUDIT_EVENT_TOTALS_QUERY, auditEventFilter } from './queries';
 
 const auditActionTypes = RULES_IN_ADVANCED_HUNTING.map((rule) => rule.auditActionType);
 const byGroup =
@@ -39,5 +39,19 @@ describe('Audit event queries', () => {
     expect(() => auditEventFilter(['AsrOfficeChildProcessAudited") or true or ("'])).toThrow(/not an ASR audit action type/);
     expect(() => auditEventFilter(['AsrOfficeChildProcessBlocked'])).toThrow(/not an ASR audit action type/);
     expect(() => auditEventFilter([])).toThrow(/No ASR audit action types/);
+  });
+});
+
+describe('ASR_RULE_MODES_QUERY', () => {
+  it('counts devices per ASR rule and Rule mode from the latest report of each device, aggregated in KQL', () => {
+    expect(ASR_RULE_MODES_QUERY).toBe(
+      'DeviceTvmInfoGathering' +
+        ' | where Timestamp > ago(7d)' +
+        ' | summarize arg_max(Timestamp, AdditionalFields) by DeviceId' +
+        ' | extend States = parse_json(tostring(AdditionalFields.AsrConfigurationStates))' +
+        ' | where gettype(States) == "dictionary"' +
+        ' | mv-expand kind=array State = States' +
+        ' | summarize Devices = count() by Rule = tostring(State[0]), Mode = tostring(State[1])',
+    );
   });
 });
