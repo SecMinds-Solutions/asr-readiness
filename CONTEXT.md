@@ -40,30 +40,34 @@ The outcome of an Analysis for one ASR rule across a whole Tenant: Ready to bloc
 _Avoid_: score, status, rating
 
 **Ready to block**:
-The Verdict for a rule that has been in Audit mode for at least the Minimum audit period and has no audit events in the Observation window.
+The Verdict for a rule that Intune sets to Audit mode (on all groups, or on some when Rule modes differ by group), whose Audit period reaches the Minimum audit period, and that has no audit events in the Observation window.
 
 **Ready with exclusions**:
-The Verdict for a rule whose audit events all come from a few paths, none in a User-writable location, which become its Suggested exclusions.
+The Verdict for a rule whose audit events all come from at most 5 paths, none in a User-writable location, which become its Suggested exclusions. The path is the file the rule blocks: for most rules the file it acts on, for the LSASS credential theft rule the process that accesses LSASS.
 
 **Not ready**:
 The Verdict for a rule whose audit events are too many, too spread out, or come from a User-writable location, so they cannot be excluded safely.
 _Avoid_: too noisy, failed
 
 **No evidence**:
-The Verdict for a rule that is not in Audit mode, or not for the Minimum audit period, so its audit events say nothing yet.
+The Verdict for a rule that is not in Audit mode, or not for the Minimum audit period, so its audit events say nothing yet. This includes a Conflict, a rule no device reports in Audit mode, and a rule whose audit events advanced hunting does not record.
 _Avoid_: unknown, no data
 
 **Already blocking**:
-A rule already in Block mode. It is shown as its Rule mode, not given a Verdict.
+A rule the Tenant's Intune policies already set to Block mode. It is shown as such, not given a Verdict.
 
 **Observation window**:
 The period of audit events an Analysis looks at: the last 30 days.
 
 **Minimum audit period**:
-How long a rule must have been in Audit mode before its absence of events means anything: 14 days.
+How long a rule's Audit period must be before its absence of events means anything: 14 days.
+
+**Audit period**:
+How long a rule has been in Audit mode, measured on the devices that now report it in Audit mode: since when each has reported Audit every day without a break, where a day that is not Audit or more than 3 days without a report is a break, and the period ends at the device's last report. A device that switched to Audit mode during its latest day counts with 0 days. The shortest period across those devices is the rule's Audit period; when it covers fewer devices than Coverage, there is no Audit period. It cannot be longer than the 30 days advanced hunting keeps.
+_Avoid_: audit duration, audit age
 
 **User-writable location**:
-A path where ordinary users can create files, such as Downloads, the temp folder, AppData or removable drives. Never a Suggested exclusion.
+A path where ordinary users can create files, such as Downloads, the temp folder, AppData or removable drives. Never a Suggested exclusion. To err on the safe side, every path counts as User-writable unless it is in Program Files or in Windows outside its known user-writable folders. A folder under Program Files whose permissions an installer loosened cannot be detected.
 
 **Suggested exclusion**:
 An Exclusion the Analysis proposes for one rule so it can move to Block mode.

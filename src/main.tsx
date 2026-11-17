@@ -6,6 +6,7 @@ import { adminConsentUrl, readAdminConsentResult } from './auth/consent';
 import { createAuthClient } from './auth/msalAuthClient';
 import { applyTheme } from './theme';
 import { fetchAuditEvents } from './graph/auditEvents';
+import { fetchAuditPeriods } from './graph/auditPeriods';
 import { createGraphClient } from './graph/client';
 import { fetchRuleOverview } from './graph/ruleOverview';
 import { createReadinessCheck } from './onboarding/readiness';
@@ -31,6 +32,7 @@ function signInSetup(config: AuthConfig): SignInSetup {
     checkReadiness: createReadinessCheck(graph, () => client.refreshGraphToken()),
     loadRuleOverview: () => fetchRuleOverview(graph),
     loadAuditEvents: () => fetchAuditEvents(graph),
+    loadAuditPeriods: () => fetchAuditPeriods(graph),
   };
 }
 

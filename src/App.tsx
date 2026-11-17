@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { SecMinds } from './design-system';
 import type { AdminConsentResult } from './auth/consent';
 import type { AuthClient } from './auth/msalAuthClient';
@@ -14,11 +14,14 @@ import {
   ReadyCard,
 } from './components/Onboarding';
 import type { AuditEvents } from './analysis/auditEvents';
-import type { RuleOverview } from './analysis/ruleOverview';
+import type { AuditPeriods } from './analysis/auditPeriods';
+import { coverageFailed, type RuleOverview } from './analysis/ruleOverview';
+import { verdictsFor } from './analysis/verdicts';
 import { AuditEventsFailedAlert, AuditEventsView, LoadingAuditEvents } from './components/AuditEvents';
 import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
+import { LoadingVerdicts, VerdictsFailedAlert, VerdictsView } from './components/Verdicts';
 import type { ReadinessCheck } from './onboarding/readiness';
-import { useLoad } from './useLoad';
+import { useLoad, type LoadState } from './useLoad';
 import { useReadiness } from './onboarding/useReadiness';
 import {
   AdminConsentResultAlert,
@@ -46,10 +49,12 @@ export interface SignInSetup {
   loadRuleOverview: () => Promise<RuleOverview>;
   /** Audit events per ASR rule, application and path in the Observation window. */
   loadAuditEvents: () => Promise<AuditEvents>;
+  /** Per ASR rule GUID: how long devices have reported it in Audit mode without a break. */
+  loadAuditPeriods: () => Promise<AuditPeriods>;
 }
 
 /** What the app reads once the Tenant is ready for an Analysis. */
-type AnalysisLoaders = Pick<SignInSetup, 'loadRuleOverview' | 'loadAuditEvents'>;
+type AnalysisLoaders = Pick<SignInSetup, 'loadRuleOverview' | 'loadAuditEvents' | 'loadAuditPeriods'>;
 
 export function App({
   signIn,
@@ -143,8 +148,7 @@ function OnboardingCheck({ checkReadiness, loaders }: { checkReadiness: Readines
       return (
         <>
           <ReadyCard devices={state.devices} />
-          <RuleOverviewSection load={loaders.loadRuleOverview} />
-          <AuditEventsSection load={loaders.loadAuditEvents} />
+          <AnalysisSections loaders={loaders} />
         </>
       );
     case 'no-devices':
@@ -165,8 +169,59 @@ function OnboardingCheck({ checkReadiness, loaders }: { checkReadiness: Readines
   }
 }
 
-function RuleOverviewSection({ load }: { load: () => Promise<RuleOverview> }) {
-  const { state, reload } = useLoad(load);
+type Loaded<T> = { state: LoadState<T>; reload: () => void };
+
+/** Each part of the Analysis is read once; the Verdicts combine them, the other sections show them. */
+function AnalysisSections({ loaders }: { loaders: AnalysisLoaders }) {
+  const overview = useLoad(loaders.loadRuleOverview);
+  const events = useLoad(loaders.loadAuditEvents);
+  const periods = useLoad(loaders.loadAuditPeriods);
+  return (
+    <>
+      <VerdictsSection overview={overview} events={events} periods={periods} />
+      <RuleOverviewSection {...overview} />
+      <AuditEventsSection {...events} />
+    </>
+  );
+}
+
+function VerdictsSection({
+  overview,
+  events,
+  periods,
+}: {
+  overview: Loaded<RuleOverview>;
+  events: Loaded<AuditEvents>;
+  periods: Loaded<AuditPeriods>;
+}) {
+  const assessments = useMemo(() => {
+    if (overview.state.status !== 'loaded' || events.state.status !== 'loaded' || periods.state.status !== 'loaded') return null;
+    const { modes, coverage } = overview.state.value;
+    if (coverageFailed(coverage)) return null;
+    return verdictsFor({ modes, coverage, auditEvents: events.state.value, auditPeriods: periods.state.value });
+  }, [overview.state, events.state, periods.state]);
+
+  // A Verdict without Coverage would be No evidence for every rule, so a failed Coverage query is a failed part.
+  const failed = [
+    { name: 'the ASR rules', ...overview },
+    { name: 'the Audit events', ...events },
+    { name: 'how long rules have been in Audit mode', ...periods },
+  ].flatMap(({ name, state, reload }) => (state.status === 'failed' ? [{ message: `${name}: ${state.message}`, reload }] : []));
+  if (overview.state.status === 'loaded' && coverageFailed(overview.state.value.coverage)) {
+    failed.push({ message: `Coverage: ${overview.state.value.coverage.failed}`, reload: overview.reload });
+  }
+  if (failed.length > 0) {
+    return (
+      <VerdictsFailedAlert
+        message={`A Verdict needs every part of the Analysis, and these could not be read. ${failed.map((part) => part.message).join(' ')}`}
+        onRetry={() => failed.forEach((part) => part.reload())}
+      />
+    );
+  }
+  return assessments ? <VerdictsView assessments={assessments} /> : <LoadingVerdicts />;
+}
+
+function RuleOverviewSection({ state, reload }: Loaded<RuleOverview>) {
   switch (state.status) {
     case 'loading':
       return <LoadingRuleOverview />;
@@ -177,8 +232,7 @@ function RuleOverviewSection({ load }: { load: () => Promise<RuleOverview> }) {
   }
 }
 
-function AuditEventsSection({ load }: { load: () => Promise<AuditEvents> }) {
-  const { state, reload } = useLoad(load);
+function AuditEventsSection({ state, reload }: Loaded<AuditEvents>) {
   switch (state.status) {
     case 'loading':
       return <LoadingAuditEvents />;

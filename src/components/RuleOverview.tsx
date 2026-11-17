@@ -1,11 +1,13 @@
 import { SecMinds } from '../design-system';
+import type { BadgeProps } from '../design-system/components';
+import { devicesText } from './devicesText';
 import type { AsrRule } from '../analysis/asrRules';
 import type { AssignmentTarget, PolicyRuleMode, RuleMode, RuleState } from '../analysis/intuneRuleModes';
-import type { RuleOverview } from '../analysis/ruleOverview';
+import { coverageFailed, type RuleOverview } from '../analysis/ruleOverview';
 
 const { Alert, Badge, Button, Card, Spinner, Table } = SecMinds;
 
-type BadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+type BadgeTone = NonNullable<BadgeProps['tone']>;
 
 const TONE: Record<RuleMode, BadgeTone> = {
   'Not configured': 'neutral',
@@ -55,12 +57,6 @@ function RuleModeCell({ state }: { state: RuleState }) {
       );
   }
 }
-
-/** Whether the Coverage query failed, as opposed to no device reporting its Rule modes (null). */
-const coverageFailed = (result: RuleOverview['coverage']): result is { failed: string } =>
-  result !== null && 'failed' in result;
-
-const devicesText = (count: number, total: number) => `${count} of ${total} ${total === 1 ? 'device' : 'devices'}`;
 
 /** Every ASR rule with its Rule mode from Intune, and its Coverage when there is one. */
 export function RuleOverviewView({

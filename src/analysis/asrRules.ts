@@ -4,6 +4,7 @@
 // profile. Audit action types are the reference's "Advanced hunting action type" for Audit mode.
 // Configuration keys are the keys of AsrConfigurationStates in advanced hunting's
 // DeviceTvmInfoGathering, which Microsoft does not document: they are taken from a Tenant's answer.
+// Which side an exclusion names follows the reference's description of what each rule blocks.
 // asrRules.test.ts pins every entry against those sources.
 
 /** The settings catalog setting that holds all ASR rules of an Intune policy. */
@@ -18,7 +19,16 @@ export interface AsrRule {
   auditActionType: string | null;
   /** The rule's key in DeviceTvmInfoGathering's AdditionalFields.AsrConfigurationStates. */
   configurationKey: string;
+  /**
+   * Which file an exclusion names: what the rule blocks. For most rules that is the file the rule
+   * acts on (`target`, an Audit event's path). The LSASS rule blocks the process that accesses LSASS
+   * memory, not lsass.exe (Microsoft's ASR rules reference), so it excludes that process (`source`).
+   */
+  excludes: 'target' | 'source';
 }
+
+/** The rules whose exclusion names the process that triggered the rule. */
+const EXCLUDES_SOURCE = new Set(['9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2']);
 
 const rule = (
   guid: string,
@@ -32,6 +42,7 @@ const rule = (
   intuneSetting: `${INTUNE_ASR_SETTING}_${setting}`,
   auditActionType,
   configurationKey,
+  excludes: EXCLUDES_SOURCE.has(guid) ? 'source' : 'target',
 });
 
 export const ASR_RULES: readonly AsrRule[] = [

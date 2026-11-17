@@ -3,6 +3,8 @@ import { App, type SignInSetup } from './App';
 import type { AuthClient } from './auth/msalAuthClient';
 import type { SignedInUser } from './auth/user';
 import { auditEventsFromRows, type AuditEvents } from './analysis/auditEvents';
+import type { AuditPeriods } from './analysis/auditPeriods';
+import { asrSettings, choice, toAllDevices } from './analysis/fixtures/intunePolicies';
 import { ruleModesFromPolicies } from './analysis/intuneRuleModes';
 import type { RuleOverview } from './analysis/ruleOverview';
 import type { Readiness, ReadinessCheck } from './onboarding/readiness';
@@ -46,6 +48,7 @@ function setup(
   checkReadiness: ReadinessCheck = async () => ({ status: 'ready', devices: 12 }),
   loadRuleOverview: () => Promise<RuleOverview> = async () => emptyOverview,
   loadAuditEvents: () => Promise<AuditEvents> = async () => auditEventsFromRows([], []),
+  loadAuditPeriods: () => Promise<AuditPeriods> = async () => ({}),
 ): SignInSetup {
   return {
     client,
@@ -54,8 +57,13 @@ function setup(
     checkReadiness: vi.fn(checkReadiness),
     loadRuleOverview: vi.fn(loadRuleOverview),
     loadAuditEvents: vi.fn(loadAuditEvents),
+    loadAuditPeriods: vi.fn(loadAuditPeriods),
   };
 }
+
+/** The alert with this title; a failed part also shows the No Verdicts alert. */
+const alertWith = async (title: string) =>
+  (await screen.findAllByRole('alert')).find((alert) => alert.textContent?.includes(title)) as HTMLElement;
 
 const findNavbarSignIn = async () => within(screen.getByRole('navigation')).findByRole('button', { name: 'Sign in' });
 
@@ -319,7 +327,7 @@ describe('App: ASR rules', () => {
     render(<App signIn={signIn} adminConsentResult={null} />);
     expect(await screen.findByRole('heading', { name: 'ASR rules' })).toBeInTheDocument();
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
-    expect(screen.getAllByText('0 of 12 devices')).toHaveLength(19);
+    expect(within(screen.getByRole('table', { name: /Rule mode from the Tenant/ })).getAllByText('0 of 12 devices')).toHaveLength(19);
   });
 
   it('does not read the ASR rules when the Tenant is not ready', async () => {
@@ -337,7 +345,7 @@ describe('App: ASR rules', () => {
   it('shows why the ASR rules could not be read and lets the User try again', async () => {
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => Promise.reject(new Error('Microsoft Graph answered HTTP 503.')));
     render(<App signIn={signIn} adminConsentResult={null} />);
-    const alert = await screen.findByRole('alert');
+    const alert = await alertWith('The ASR rules could not be read');
     expect(alert).toHaveTextContent('HTTP 503');
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(signIn.loadRuleOverview).toHaveBeenCalledTimes(2));
@@ -371,10 +379,63 @@ describe('App: Audit events', () => {
     const throttled = new Error('Advanced hunting is throttled: wait a few minutes and try again.');
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, async () => Promise.reject(throttled));
     render(<App signIn={signIn} adminConsentResult={null} />);
-    const alert = await screen.findByRole('alert');
+    const alert = await alertWith('The Audit events could not be read');
     expect(alert).toHaveTextContent('The Audit events could not be read');
     expect(alert).toHaveTextContent('Advanced hunting is throttled');
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(signIn.loadAuditEvents).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('App: Verdicts', () => {
+  const signedIn = () => fakeClient(async () => ada);
+  const ADOBE = '7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c';
+  const adobeInAudit: RuleOverview = {
+    modes: ruleModesFromPolicies([
+      { id: 'p1', name: 'ASR', assignments: [toAllDevices], settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value },
+    ]),
+    coverage: { devices: 12, auditDevices: { [ADOBE]: 12 }, unrecognisedRules: [] },
+  };
+
+  it('combines the ASR rules, Audit events and Audit periods into a Verdict per rule, each read once', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => ({
+      [ADOBE]: { devices: 12, shortestDays: 20 },
+    }));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    expect(await screen.findByRole('heading', { name: 'Verdicts' })).toBeInTheDocument();
+    const verdicts = screen.getByRole('table', { name: /Verdict, Coverage and reason/ });
+    const adobe = within(verdicts).getByRole('cell', { name: 'Block Adobe Reader from creating child processes' }).closest('tr') as HTMLElement;
+    expect(within(adobe).getByText('Ready to block')).toBeInTheDocument();
+    expect(within(adobe).getByText('12 of 12 devices')).toBeInTheDocument();
+    expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
+    expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
+    expect(signIn.loadAuditPeriods).toHaveBeenCalledOnce();
+  });
+
+  it('gives no Verdicts when the Coverage query failed, rather than No evidence for every rule', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => ({ ...adobeInAudit, coverage: { failed: 'Advanced hunting did not answer.' } }));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    const alert = await alertWith('No Verdicts');
+    expect(alert).toHaveTextContent('Coverage: Advanced hunting did not answer.');
+    expect(screen.queryByRole('heading', { name: 'Verdicts' })).toBeNull();
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(signIn.loadRuleOverview).toHaveBeenCalledTimes(2));
+  });
+
+  it('says it is working out the Verdicts while a part is still loading', async () => {
+    render(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, undefined, undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
+    expect(await screen.findByText('Working out a Verdict per ASR rule…')).toBeInTheDocument();
+  });
+
+  it('gives no Verdicts when a part could not be read, says which, and lets the User try that part again', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, undefined, async () => Promise.reject(new Error('Advanced hunting is throttled.')));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No Verdicts');
+    expect(alert).toHaveTextContent('how long rules have been in Audit mode: Advanced hunting is throttled.');
+    expect(screen.queryByRole('heading', { name: 'Verdicts' })).toBeNull();
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(signIn.loadAuditPeriods).toHaveBeenCalledTimes(2));
+    expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
   });
 });

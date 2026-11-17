@@ -19,3 +19,7 @@ export interface RuleOverview {
    */
   coverage: Coverage | null | { failed: string };
 }
+
+/** Whether the Coverage query failed, as opposed to no device reporting its Rule modes (null). */
+export const coverageFailed = (result: RuleOverview['coverage']): result is { failed: string } =>
+  result !== null && 'failed' in result;

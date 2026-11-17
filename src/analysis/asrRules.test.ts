@@ -49,6 +49,12 @@ const auditActionTypes: Record<string, string | null> = {
 };
 
 describe('ASR_RULES', () => {
+  it('excludes the process that accesses LSASS for the LSASS rule, and the file the rule acts on for every other rule', () => {
+    const bySource = ASR_RULES.filter((rule) => rule.excludes === 'source').map((rule) => rule.guid);
+    expect(bySource).toEqual(['9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2']);
+    expect(ASR_RULES.filter((rule) => rule.excludes === 'target')).toHaveLength(18);
+  });
+
   it("lists exactly Microsoft's ASR rules with their GUIDs, names and Intune settings", () => {
     expect(ASR_RULES.map((rule) => [rule.guid, rule.name, rule.intuneSetting])).toEqual(
       expected.map(([guid, name, setting]) => [guid, name, `${INTUNE_ASR_SETTING}_${setting}`]),

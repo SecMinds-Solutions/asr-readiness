@@ -36,3 +36,12 @@ export const ruleModesResult = (...rows: { Rule: string; Mode: string; Devices: 
   ],
   results: rows,
 });
+
+export const auditPeriodsResult = (...rows: { Rule: string; Devices: number; ShortestDays: number }[]) => ({
+  schema: [
+    { Name: 'Rule', Type: 'String' },
+    { Name: 'Devices', Type: 'Int64' },
+    { Name: 'ShortestDays', Type: 'Int32' },
+  ],
+  results: rows,
+});
