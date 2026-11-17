@@ -116,4 +116,34 @@ describe('createGraphClient', () => {
     const client = createGraphClient(async () => 't', { fetchFn: hanging, sleep: async () => {}, timeoutMs: 20 });
     await expect(client.get('/x')).rejects.toMatchObject({ name: 'TimeoutError' });
   });
+
+  it('follows @odata.nextLink and returns every page', async () => {
+    const { client, fetchFn } = setup(
+      json(200, { value: [1, 2], '@odata.nextLink': 'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?$skiptoken=abc' }),
+      json(200, { value: [3] }),
+    );
+    await expect(client.getAll('/deviceManagement/configurationPolicies', { version: 'beta' })).resolves.toEqual([1, 2, 3]);
+    expect(fetchFn.mock.calls.map(([url]) => url)).toEqual([
+      'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies',
+      'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?$skiptoken=abc',
+    ]);
+  });
+
+  it('never sends the token to a next link outside Microsoft Graph', async () => {
+    const { client, fetchFn } = setup(json(200, { value: [1], '@odata.nextLink': 'https://evil.example.com/steal' }));
+    await expect(client.getAll('/x')).rejects.toThrow(/next link/i);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops after a bounded number of pages', async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () => json(200, { value: [1], '@odata.nextLink': 'https://graph.microsoft.com/v1.0/x?page=n' }));
+    const client = createGraphClient(async () => 't', { fetchFn, sleep: async () => {}, timeoutMs: 1000 });
+    await expect(client.getAll('/x')).rejects.toThrow(/pages/i);
+    expect(fetchFn).toHaveBeenCalledTimes(50);
+  });
+
+  it('refuses a page without a value array', async () => {
+    const { client } = setup(json(200, { items: [] }));
+    await expect(client.getAll('/x')).rejects.toThrow();
+  });
 });

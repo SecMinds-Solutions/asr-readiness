@@ -1,0 +1,18 @@
+import type { RuleModes } from './intuneRuleModes';
+
+/** How many devices each ASR rule is in Audit mode on, out of all onboarded devices. */
+export interface Coverage {
+  /** Devices onboarded to Defender for Endpoint that report their ASR rule states. */
+  devices: number;
+  /** Per ASR rule GUID: devices on which the rule is in Audit mode. */
+  auditDevices: Record<string, number>;
+  /** Devices not managed through Intune, so Intune policies do not reach them. */
+  devicesWithoutIntune: number;
+}
+
+/** Every ASR rule with its Rule mode and Coverage. */
+export interface RuleOverview {
+  modes: RuleModes;
+  /** Null while Coverage cannot be read; the Rule modes are shown without it. */
+  coverage: Coverage | null;
+}

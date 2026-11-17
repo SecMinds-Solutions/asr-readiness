@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { App, type SignInSetup } from './App';
 import type { AuthClient } from './auth/msalAuthClient';
 import type { SignedInUser } from './auth/user';
+import { ruleModesFromPolicies } from './analysis/intuneRuleModes';
+import type { RuleOverview } from './analysis/ruleOverview';
 import type { Readiness, ReadinessCheck } from './onboarding/readiness';
 import type { ContactConsent, UserRecordClient } from './user-record/client';
 
@@ -32,12 +34,24 @@ function fakeUserRecord(stored: ContactConsent | null = storedConsent): UserReco
   };
 }
 
+const emptyOverview: RuleOverview = {
+  modes: ruleModesFromPolicies([]),
+  coverage: { devices: 12, auditDevices: {}, devicesWithoutIntune: 0 },
+};
+
 function setup(
   client: AuthClient,
   userRecord: UserRecordClient = fakeUserRecord(),
   checkReadiness: ReadinessCheck = async () => ({ status: 'ready', devices: 12 }),
+  loadRuleOverview: () => Promise<RuleOverview> = async () => emptyOverview,
 ): SignInSetup {
-  return { client, adminConsentUrl: consentUrl, userRecord, checkReadiness: vi.fn(checkReadiness) };
+  return {
+    client,
+    adminConsentUrl: consentUrl,
+    userRecord,
+    checkReadiness: vi.fn(checkReadiness),
+    loadRuleOverview: vi.fn(loadRuleOverview),
+  };
 }
 
 const findNavbarSignIn = async () => within(screen.getByRole('navigation')).findByRole('button', { name: 'Sign in' });
@@ -226,7 +240,7 @@ describe('App: onboarding check', () => {
   it('continues to the Analysis for a Supported tenant and a User with the right roles', async () => {
     renderWith(async () => ({ status: 'ready', devices: 12 }));
     expect(await screen.findByRole('heading', { name: 'Ready for an Analysis' })).toBeInTheDocument();
-    expect(screen.getByText(/12 devices/)).toBeInTheDocument();
+    expect(screen.getByText(/advanced hunting shows 12 devices/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Signed in' })).toBeInTheDocument();
   });
 
@@ -291,5 +305,38 @@ describe('App: onboarding check', () => {
   it('shows an unexpected error of the check as failed', async () => {
     renderWith(async () => Promise.reject(new Error('Nobody is signed in.')));
     expect(await screen.findByRole('alert')).toHaveTextContent('Nobody is signed in.');
+  });
+});
+
+describe('App: ASR rules', () => {
+  const signedIn = () => fakeClient(async () => ada);
+
+  it('reads the ASR rules once the Tenant is ready, and lists them', async () => {
+    const signIn = setup(signedIn());
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    expect(await screen.findByRole('heading', { name: 'ASR rules' })).toBeInTheDocument();
+    expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
+    expect(screen.getAllByText('0 of 12 devices')).toHaveLength(19);
+  });
+
+  it('does not read the ASR rules when the Tenant is not ready', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), async () => ({ status: 'no-devices' }));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    await screen.findByRole('heading', { name: 'No devices to analyse yet' });
+    expect(signIn.loadRuleOverview).not.toHaveBeenCalled();
+  });
+
+  it('says it is reading the ASR rules', async () => {
+    render(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
+    expect(await screen.findByText('Reading the Intune policies…')).toBeInTheDocument();
+  });
+
+  it('shows why the ASR rules could not be read and lets the User try again', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => Promise.reject(new Error('Microsoft Graph answered HTTP 503.')));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('HTTP 503');
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(signIn.loadRuleOverview).toHaveBeenCalledTimes(2));
   });
 });

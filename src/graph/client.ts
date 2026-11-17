@@ -6,6 +6,7 @@ const MAX_RETRIES = 3;
 const MAX_RETRY_WAIT_MS = 30_000;
 const DEFAULT_RETRY_WAIT_MS = 2_000;
 const RETRYABLE = new Set([429, 503, 504]);
+const MAX_PAGES = 50;
 
 /** A failed Microsoft Graph request, with the HTTP status and Graph's error code and message. */
 export class GraphError extends Error {
@@ -26,6 +27,8 @@ export interface GraphRequestOptions {
 
 export interface GraphClient {
   get<T>(path: string, options?: GraphRequestOptions): Promise<T>;
+  /** Every item of a collection, following @odata.nextLink for at most 50 pages. */
+  getAll<T>(path: string, options?: GraphRequestOptions): Promise<T[]>;
   post<T>(path: string, body: unknown, options?: GraphRequestOptions): Promise<T>;
 }
 
@@ -96,11 +99,11 @@ export function createGraphClient(
     timeoutMs = 60_000,
   }: GraphClientOptions = {},
 ): GraphClient {
-  async function request<T>(method: 'GET' | 'POST', path: string, body: unknown, { version = 'v1.0' }: GraphRequestOptions = {}) {
+  async function request<T>(method: 'GET' | 'POST', url: string, body: unknown): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       const headers = new Headers({ Authorization: `Bearer ${await accessToken()}` });
       if (body !== undefined) headers.set('Content-Type', 'application/json');
-      const response = await fetchFn(`${GRAPH}/${version}${path}`, {
+      const response = await fetchFn(url, {
         method,
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -115,8 +118,26 @@ export function createGraphClient(
     }
   }
 
+  const urlOf = (path: string, { version = 'v1.0' }: GraphRequestOptions = {}) => `${GRAPH}/${version}${path}`;
+
+  async function getAll<T>(path: string, options?: GraphRequestOptions): Promise<T[]> {
+    const items: T[] = [];
+    let url: string | undefined = urlOf(path, options);
+    for (let page = 0; url; page++) {
+      if (page === MAX_PAGES) throw new Error(`Microsoft Graph returned more than ${MAX_PAGES} pages.`);
+      // The token goes only to Microsoft Graph, whatever a next link says.
+      if (!url.startsWith(`${GRAPH}/`)) throw new Error('Microsoft Graph sent a next link outside Microsoft Graph.');
+      const body: { value?: unknown; '@odata.nextLink'?: unknown } = await request('GET', url, undefined);
+      if (!Array.isArray(body.value)) throw new Error('Microsoft Graph sent a page without a value list.');
+      items.push(...(body.value as T[]));
+      url = typeof body['@odata.nextLink'] === 'string' ? body['@odata.nextLink'] : undefined;
+    }
+    return items;
+  }
+
   return {
-    get: (path, options) => request('GET', path, undefined, options),
-    post: (path, body, options) => request('POST', path, body, options),
+    get: (path, options) => request('GET', urlOf(path, options), undefined),
+    getAll,
+    post: (path, body, options) => request('POST', urlOf(path, options), body),
   };
 }

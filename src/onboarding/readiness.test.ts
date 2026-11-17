@@ -13,6 +13,7 @@ function fakeGraph({ hunting, intune }: { hunting: Answer<unknown>; intune: Answ
   const graph: GraphClient = {
     get: async <T,>() => (await answer(intune)) as T,
     post: async <T,>() => (await answer(hunting)) as T,
+    getAll: async () => Promise.reject(new Error('not used')),
   };
   vi.spyOn(graph, 'get');
   vi.spyOn(graph, 'post');

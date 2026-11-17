@@ -19,6 +19,8 @@ All notable changes to this project are documented in this file.
 - An API (`api/`) that stores the User record: it validates the access token's signature, issuer, audience, expiry, version, client and scope, takes the Home tenant, username, first and last name and email address from the token, and stores exactly those six fields with the Contact consent and its date in Azure Table Storage.
 - ADR-0005: the User record is taken from the sign-in token and stored by the app's own API.
 - Onboarding check after sign-in: one small advanced hunting query and one Intune read decide whether the Tenant is a Supported tenant and the User has the roles an Analysis needs. A Tenant without Defender for Endpoint data in advanced hunting gets a page that explains Plan 2 and why Defender for Business is not supported; a Tenant without onboarded devices is told there is nothing to analyse yet; a User missing a role is told which one and where to assign it.
+- ASR rules overview after onboarding: every ASR rule in the catalogue with its Rule mode from the Tenant's assigned Intune settings catalog policies, a clear conflict state when policies set different Rule modes, and a note on unassigned policies and unrecognised settings. Coverage per rule is not shown yet.
+- The ASR rule catalogue: the 19 ASR rules with their GUIDs and names from Microsoft's ASR rules reference, in one place.
 - `.env.example` with `VITE_ENTRA_CLIENT_ID`, the client ID of the app registration to sign in with.
 
 ### Changed

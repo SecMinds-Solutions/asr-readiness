@@ -13,7 +13,10 @@ import {
   NotSupportedCard,
   ReadyCard,
 } from './components/Onboarding';
+import type { RuleOverview } from './analysis/ruleOverview';
+import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
 import type { ReadinessCheck } from './onboarding/readiness';
+import { useLoad } from './useLoad';
 import { useReadiness } from './onboarding/useReadiness';
 import {
   AdminConsentResultAlert,
@@ -37,6 +40,8 @@ export interface SignInSetup {
   userRecord: UserRecordClient;
   /** Whether the Tenant is a Supported tenant and the User has the roles an Analysis needs. */
   checkReadiness: ReadinessCheck;
+  /** Every ASR rule with its Rule mode, and its Coverage once that can be read. */
+  loadRuleOverview: () => Promise<RuleOverview>;
 }
 
 export function App({
@@ -81,7 +86,12 @@ function SignInPage({ setup, adminConsentResult }: { setup: SignInSetup; adminCo
       )}
       {state.status === 'consent-required' && <ConsentRequiredAlert adminConsentUrl={setup.adminConsentUrl} />}
       {state.status === 'failed' && <SignInFailedAlert message={state.message} onRetry={signIn} />}
-      {state.status === 'signed-in' && <SignedIn user={state.user} userRecord={setup.userRecord} checkReadiness={setup.checkReadiness} />}
+      {state.status === 'signed-in' && <SignedIn
+          user={state.user}
+          userRecord={setup.userRecord}
+          checkReadiness={setup.checkReadiness}
+          loadRuleOverview={setup.loadRuleOverview}
+        />}
     </Page>
   );
 }
@@ -91,10 +101,12 @@ function SignedIn({
   user,
   userRecord,
   checkReadiness,
+  loadRuleOverview,
 }: {
   user: SignedInUser;
   userRecord: UserRecordClient;
   checkReadiness: ReadinessCheck;
+  loadRuleOverview: () => Promise<RuleOverview>;
 }) {
   const { state, retry, saveContactConsent } = useUserRecord(userRecord);
   switch (state.status) {
@@ -108,20 +120,31 @@ function SignedIn({
       return (
         <>
           <SignedInCard user={user} />
-          <OnboardingCheck checkReadiness={checkReadiness} />
+          <OnboardingCheck checkReadiness={checkReadiness} loadRuleOverview={loadRuleOverview} />
         </>
       );
   }
 }
 
 /** After the Contact consent choice: is this a Supported tenant, and may this User run an Analysis? */
-function OnboardingCheck({ checkReadiness }: { checkReadiness: ReadinessCheck }) {
+function OnboardingCheck({
+  checkReadiness,
+  loadRuleOverview,
+}: {
+  checkReadiness: ReadinessCheck;
+  loadRuleOverview: () => Promise<RuleOverview>;
+}) {
   const { state, checkAgain } = useReadiness(checkReadiness);
   switch (state.status) {
     case 'checking':
       return <CheckingTenant />;
     case 'ready':
-      return <ReadyCard devices={state.devices} />;
+      return (
+        <>
+          <ReadyCard devices={state.devices} />
+          <RuleOverviewSection load={loadRuleOverview} />
+        </>
+      );
     case 'no-devices':
       return <NoDevicesCard onCheckAgain={checkAgain} />;
     case 'not-supported':
@@ -137,6 +160,18 @@ function OnboardingCheck({ checkReadiness }: { checkReadiness: ReadinessCheck })
       );
     case 'failed':
       return <CheckFailedAlert message={state.message} onRetry={checkAgain} />;
+  }
+}
+
+function RuleOverviewSection({ load }: { load: () => Promise<RuleOverview> }) {
+  const { state, reload } = useLoad(load);
+  switch (state.status) {
+    case 'loading':
+      return <LoadingRuleOverview />;
+    case 'failed':
+      return <RuleOverviewFailedAlert message={state.message} onRetry={reload} />;
+    case 'loaded':
+      return <RuleOverviewView overview={state.value} />;
   }
 }
 
