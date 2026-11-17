@@ -1,5 +1,4 @@
-/// <reference types="vitest/config" />
-import { defineConfig } from 'vite';
+import { configDefaults, defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -12,5 +11,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: true,
+    // api/ has its own tests, run in Node from api/.
+    exclude: [...configDefaults.exclude, 'api/**'],
   },
 });

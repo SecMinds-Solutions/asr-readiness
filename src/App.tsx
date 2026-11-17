@@ -3,6 +3,8 @@ import { SecMinds } from './design-system';
 import type { AdminConsentResult } from './auth/consent';
 import type { AuthClient } from './auth/msalAuthClient';
 import { useAuth } from './auth/useAuth';
+import type { SignedInUser } from './auth/user';
+import { ContactConsentCard, LoadingUserRecord, UserRecordFailedAlert } from './components/ContactConsent';
 import {
   AdminConsentResultAlert,
   CheckingSignIn,
@@ -12,6 +14,8 @@ import {
   SignInFailedAlert,
   SignInNotConfiguredAlert,
 } from './components/SignIn';
+import type { UserRecordClient } from './user-record/client';
+import { useUserRecord } from './user-record/useUserRecord';
 import './app.css';
 
 const { Navbar, Logo, Badge, Button } = SecMinds;
@@ -20,6 +24,7 @@ const { Navbar, Logo, Badge, Button } = SecMinds;
 export interface SignInSetup {
   client: AuthClient;
   adminConsentUrl: string;
+  userRecord: UserRecordClient;
 }
 
 export function App({
@@ -64,9 +69,24 @@ function SignInPage({ setup, adminConsentResult }: { setup: SignInSetup; adminCo
       )}
       {state.status === 'consent-required' && <ConsentRequiredAlert adminConsentUrl={setup.adminConsentUrl} />}
       {state.status === 'failed' && <SignInFailedAlert message={state.message} onRetry={signIn} />}
-      {state.status === 'signed-in' && <SignedInCard user={state.user} />}
+      {state.status === 'signed-in' && <SignedIn user={state.user} userRecord={setup.userRecord} />}
     </Page>
   );
+}
+
+/** A new User makes their Contact consent choice before anything else; a returning User is not asked again. */
+function SignedIn({ user, userRecord }: { user: SignedInUser; userRecord: UserRecordClient }) {
+  const { state, retry, saveContactConsent } = useUserRecord(userRecord);
+  switch (state.status) {
+    case 'loading':
+      return <LoadingUserRecord />;
+    case 'failed':
+      return <UserRecordFailedAlert message={state.message} onRetry={retry} />;
+    case 'choice-needed':
+      return <ContactConsentCard onContinue={saveContactConsent} saving={state.saving} error={state.error} />;
+    case 'known':
+      return <SignedInCard user={user} />;
+  }
 }
 
 function Page({ actions, children }: { actions?: ReactNode; children: ReactNode }) {

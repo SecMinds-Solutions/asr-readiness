@@ -1,10 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
-import { readAuthConfig } from './auth/config';
+import { App, type SignInSetup } from './App';
+import { readAuthConfig, type AuthConfig } from './auth/config';
 import { adminConsentUrl, readAdminConsentResult } from './auth/consent';
 import { createAuthClient } from './auth/msalAuthClient';
 import { applyTheme } from './theme';
+import { createUserRecordClient } from './user-record/client';
 
 applyTheme(document.documentElement, window.matchMedia('(prefers-color-scheme: dark)'));
 
@@ -14,10 +15,16 @@ const adminConsentResult = readAdminConsentResult(window.location.search);
 if (adminConsentResult) window.history.replaceState(null, '', window.location.pathname);
 
 const authConfig = readAuthConfig(import.meta.env, window.location.origin);
-const signIn = authConfig && {
-  client: createAuthClient(authConfig),
-  adminConsentUrl: adminConsentUrl(authConfig),
-};
+const signIn = authConfig ? signInSetup(authConfig) : null;
+
+function signInSetup(config: AuthConfig): SignInSetup {
+  const client = createAuthClient(config);
+  return {
+    client,
+    adminConsentUrl: adminConsentUrl(config),
+    userRecord: createUserRecordClient(() => client.userRecordToken()),
+  };
+}
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element');

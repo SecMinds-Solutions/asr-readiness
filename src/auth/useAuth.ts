@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { errorMessage } from '../errorMessage';
 import { isConsentError } from './consent';
 import type { AuthClient } from './msalAuthClient';
 import type { SignedInUser } from './user';
@@ -13,7 +14,7 @@ export type AuthState =
 
 function problemFrom(error: unknown): AuthState {
   if (isConsentError(error)) return { status: 'consent-required' };
-  return { status: 'failed', message: error instanceof Error ? error.message : 'Unknown error.' };
+  return { status: 'failed', message: errorMessage(error) };
 }
 
 /** Sign-in state for the UI, and the actions that change it. */

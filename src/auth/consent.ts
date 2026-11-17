@@ -22,7 +22,8 @@ export function isConsentError(error: unknown): boolean {
 
 /**
  * The Microsoft identity platform's admin consent page. An admin of any tenant signs in
- * there and grants, for their whole tenant, every permission the app registration requests.
+ * there and grants, for their whole tenant, every permission the app registration requests:
+ * with `.default` it asks for all required permissions, the app's own User record scope included.
  * It then returns to `redirectUri` with the outcome (see `readAdminConsentResult`).
  */
 export function adminConsentUrl({ clientId, redirectUri }: AuthConfig): string {

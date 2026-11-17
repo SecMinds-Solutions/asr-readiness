@@ -23,13 +23,17 @@ ready-made Intune policy that you review and deploy yourself.
   your own delegated token; nothing about it is sent to or stored by SecMinds.
 - **Read-only, delegated permissions only:** `ThreatHunting.Read.All` and
   `DeviceManagementConfiguration.Read.All`, used only while you are signed in and limited
-  to what your own roles allow.
+  to what your own roles allow. The app also has one scope of its own, `UserRecord.ReadWrite`,
+  used only to store your User record with its own backend.
 - **Sign-in with Microsoft:** you sign in on Microsoft's own sign-in page. Your sign-in tokens
   are kept in the browser tab's session storage and are gone when you close the tab. This
   includes a refresh token (`offline_access`) that renews them while the tab is open. The app
   has no client secret or certificate.
-- **Stored about you:** your tenant ID, username, first and last name, email address, and
-  whether you agreed to hear from SecMinds about other products.
+- **Stored about you, and nothing else:** your Home tenant ID, username, first name, last
+  name, email address, and whether you agreed to hear from SecMinds about other products,
+  with the date of that choice. All of it except the choice comes from your Microsoft
+  sign-in. You make the choice after your first sign-in, and the box is unticked by default.
+  The record is kept in Azure Table Storage in West Europe.
 - **Hosted on Azure.** The web page is served from Azure's global network; the backend that
   stores the User record runs in West Europe.
 
