@@ -9,14 +9,33 @@ export interface IntunePolicy {
   name: string;
   /** The `value` items of GET /deviceManagement/configurationPolicies/{id}/settings. */
   settings: unknown[];
-  /** Whether the policy is assigned to any group or to all devices. */
-  assigned: boolean;
+  /** The `value` items of GET /deviceManagement/configurationPolicies/{id}/assignments. */
+  assignments: unknown[];
+}
+
+/**
+ * Who a policy is assigned to. Exclusions are left out: a policy that only excludes groups is
+ * unassigned. A target type this version does not know is kept as `other`, and counts as shared.
+ */
+export type AssignmentTarget =
+  | { kind: 'all-devices' }
+  | { kind: 'all-users' }
+  | { kind: 'group'; groupId: string }
+  | { kind: 'other'; type: string };
+
+/** One policy's Rule mode for a rule, with the targets it is assigned to. */
+export interface PolicyRuleMode {
+  policy: string;
+  mode: RuleMode;
+  targets: AssignmentTarget[];
 }
 
 export type RuleState =
   | { kind: 'mode'; mode: RuleMode; policies: string[] }
-  /** Policies set different Rule modes; on a device that gets both, Intune applies neither. */
-  | { kind: 'conflict'; policies: { policy: string; mode: RuleMode }[] };
+  /** Policies that disagree share a target, so some devices get both and Intune applies neither (CONTEXT.md: Conflict). */
+  | { kind: 'conflict'; policies: PolicyRuleMode[] }
+  /** Policies that disagree target different groups (CONTEXT.md: Differs by group). */
+  | { kind: 'differs-by-group'; policies: PolicyRuleMode[] };
 
 export interface RuleModes {
   rules: { rule: AsrRule; state: RuleState }[];
@@ -31,6 +50,53 @@ const MODE_BY_SUFFIX: Record<string, RuleMode> = { off: 'Disabled', audit: 'Audi
 type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json => typeof value === 'object' && value !== null;
 const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+
+const TARGET_TYPES: Record<string, AssignmentTarget['kind']> = {
+  '#microsoft.graph.allDevicesAssignmentTarget': 'all-devices',
+  '#microsoft.graph.allLicensedUsersAssignmentTarget': 'all-users',
+  '#microsoft.graph.groupAssignmentTarget': 'group',
+};
+const EXCLUSION_TYPE = '#microsoft.graph.exclusionGroupAssignmentTarget';
+
+/** The include targets of a policy's assignments, as Graph returns them. */
+export function assignmentTargets(assignments: unknown[]): AssignmentTarget[] {
+  return assignments.flatMap((assignment): AssignmentTarget[] => {
+    const target = isObject(assignment) ? assignment['target'] : undefined;
+    if (!isObject(target)) return [];
+    const type = typeof target['@odata.type'] === 'string' ? target['@odata.type'] : 'unknown';
+    if (type === EXCLUSION_TYPE) return [];
+    const kind = TARGET_TYPES[type];
+    if (kind === 'group' && typeof target['groupId'] === 'string') return [{ kind, groupId: target['groupId'] }];
+    if (kind === 'all-devices' || kind === 'all-users') return [{ kind }];
+    return [{ kind: 'other', type }];
+  });
+}
+
+/**
+ * Whether two policies may reach the same devices: they target the same group, or one targets All
+ * devices, All users or a target type this version does not know. Exclusions and assignment filters
+ * are not taken into account. Different groups may still share devices; without reading group
+ * members the app cannot tell (ADR-0002).
+ */
+function shareTarget(a: AssignmentTarget[], b: AssignmentTarget[]): boolean {
+  const notOnlyGroups = (targets: AssignmentTarget[]) => targets.some((target) => target.kind !== 'group');
+  if (notOnlyGroups(a) || notOnlyGroups(b)) return true;
+  const groups = new Set(a.flatMap((target) => (target.kind === 'group' ? [target.groupId] : [])));
+  return b.some((target) => target.kind === 'group' && groups.has(target.groupId));
+}
+
+/** Policies that agree give their Rule mode; policies that disagree are a Conflict where they share a target. */
+function ruleState(configured: PolicyRuleMode[]): RuleState {
+  const [first] = configured;
+  if (!first) return { kind: 'mode', mode: 'Not configured', policies: [] };
+  if (configured.every((entry) => entry.mode === first.mode)) {
+    return { kind: 'mode', mode: first.mode, policies: configured.map((entry) => entry.policy) };
+  }
+  const conflict = configured.some((a, i) =>
+    configured.slice(i + 1).some((b) => a.mode !== b.mode && shareTarget(a.targets, b.targets)),
+  );
+  return { kind: conflict ? 'conflict' : 'differs-by-group', policies: configured };
+}
 
 /** Whether a policy's settings hold the "Attack Surface Reduction Rules" group setting. */
 export const hasAsrRules = (settings: unknown[]): boolean => asrRuleSettings(settings).length > 0;
@@ -48,18 +114,20 @@ function asrRuleSettings(settings: unknown[]): Json[] {
 
 /**
  * The Rule mode of every ASR rule in the catalogue, from the Tenant's assigned Intune policies.
- * Following Intune's merge behaviour, policies that agree give that Rule mode, and policies that
- * disagree give a conflict: where both apply to a device, Intune holds the rule back.
+ * Following Intune's merge behaviour, policies that agree give that Rule mode. Policies that
+ * disagree are a Conflict where they share an assignment target: where both apply to a device,
+ * Intune holds the rule back. Policies that disagree on separate groups differ by group.
  */
 export function ruleModesFromPolicies(policies: IntunePolicy[]): RuleModes {
-  const found = new Map<string, { policy: string; mode: RuleMode }[]>();
+  const found = new Map<string, PolicyRuleMode[]>();
   const unassignedPolicies: string[] = [];
   const unrecognisedSettings: RuleModes['unrecognisedSettings'] = [];
 
   for (const policy of policies) {
     const ruleSettings = asrRuleSettings(policy.settings);
     if (ruleSettings.length === 0) continue;
-    if (!policy.assigned) {
+    const targets = assignmentTargets(policy.assignments);
+    if (targets.length === 0) {
       unassignedPolicies.push(policy.name);
       continue;
     }
@@ -73,21 +141,10 @@ export function ruleModesFromPolicies(policies: IntunePolicy[]): RuleModes {
         unrecognisedSettings.push({ policy: policy.name, setting: settingId });
         continue;
       }
-      found.set(rule.guid, [...(found.get(rule.guid) ?? []), { policy: policy.name, mode }]);
+      found.set(rule.guid, [...(found.get(rule.guid) ?? []), { policy: policy.name, mode, targets }]);
     }
   }
 
-  const rules = ASR_RULES.map((rule) => {
-    const configured = found.get(rule.guid) ?? [];
-    const modes = new Set(configured.map((entry) => entry.mode));
-    const [only] = modes;
-    const state: RuleState =
-      configured.length === 0
-        ? { kind: 'mode', mode: 'Not configured', policies: [] }
-        : modes.size === 1 && only
-          ? { kind: 'mode', mode: only, policies: configured.map((entry) => entry.policy) }
-          : { kind: 'conflict', policies: configured };
-    return { rule, state };
-  });
+  const rules = ASR_RULES.map((rule) => ({ rule, state: ruleState(found.get(rule.guid) ?? []) }));
   return { rules, unassignedPolicies, unrecognisedSettings };
 }

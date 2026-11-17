@@ -1,13 +1,16 @@
 import { ASR_RULES } from './asrRules';
-import { asrSettings, choice, otherSettings } from './fixtures/intunePolicies';
-import { ruleModesFromPolicies, type IntunePolicy } from './intuneRuleModes';
+import { asrSettings, choice, excludingGroup, otherSettings, toAllDevices, toAllUsers, toGroup } from './fixtures/intunePolicies';
+import { assignmentTargets, ruleModesFromPolicies, type IntunePolicy } from './intuneRuleModes';
 
-const policy = (name: string, settings: { value: unknown[] }, assigned = true): IntunePolicy => ({
+/** A policy assigned to all devices unless other assignments are given. */
+const policy = (name: string, settings: { value: unknown[] }, assignments: unknown[] = [toAllDevices]): IntunePolicy => ({
   id: name,
   name,
   settings: settings.value,
-  assigned,
+  assignments,
 });
+
+const adobe = (mode: 'off' | 'block' | 'audit' | 'warn') => asrSettings(choice('blockadobereaderfromcreatingchildprocesses', mode));
 
 const ruleRow = (rows: ReturnType<typeof ruleModesFromPolicies>['rules'], guid: string) => {
   const row = rows.find((r) => r.rule.guid === guid);
@@ -53,26 +56,134 @@ describe('ruleModesFromPolicies', () => {
     expect(ruleRow(rules, ADOBE).state).toEqual({ kind: 'mode', mode: 'Audit', policies: ['Pilot', 'All devices'] });
   });
 
-  it('shows a conflict, with each policy and its Rule mode, when policies disagree', () => {
+  it('shows a Conflict, with each policy, its Rule mode and targets, when policies that disagree target the same group', () => {
     const { rules } = ruleModesFromPolicies([
-      policy('Pilot', asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block'))),
-      policy('All devices', asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit'))),
+      policy('Pilot', adobe('block'), [toGroup('g1')]),
+      policy('Audit', adobe('audit'), [toGroup('g1')]),
     ]);
     expect(ruleRow(rules, ADOBE).state).toEqual({
       kind: 'conflict',
       policies: [
-        { policy: 'Pilot', mode: 'Block' },
-        { policy: 'All devices', mode: 'Audit' },
+        { policy: 'Pilot', mode: 'Block', targets: [{ kind: 'group', groupId: 'g1' }] },
+        { policy: 'Audit', mode: 'Audit', targets: [{ kind: 'group', groupId: 'g1' }] },
       ],
     });
   });
 
-  it('ignores policies that are not assigned, and says which', () => {
-    const result = ruleModesFromPolicies([
-      policy('Draft', asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')), false),
+  it.each([
+    ['All devices', toAllDevices],
+    ['All users', toAllUsers],
+  ])('shows a Conflict when one of the policies that disagree targets %s', (_name, everyone) => {
+    const { rules } = ruleModesFromPolicies([
+      policy('Pilot', adobe('block'), [toGroup('g1')]),
+      policy('Everyone', adobe('audit'), [everyone]),
     ]);
+    expect(ruleRow(rules, ADOBE).state.kind).toBe('conflict');
+  });
+
+  it('shows Differs by group, with each Rule mode and its groups, when policies that disagree target different groups', () => {
+    const { rules } = ruleModesFromPolicies([
+      policy('CIS-ASR-L1', adobe('block'), [toGroup('g-block'), excludingGroup('g-audit')]),
+      policy('CIS-ASR-L1-AUDIT', adobe('audit'), [toGroup('g-audit'), toGroup('g-pilot')]),
+    ]);
+    expect(ruleRow(rules, ADOBE).state).toEqual({
+      kind: 'differs-by-group',
+      policies: [
+        { policy: 'CIS-ASR-L1', mode: 'Block', targets: [{ kind: 'group', groupId: 'g-block' }] },
+        {
+          policy: 'CIS-ASR-L1-AUDIT',
+          mode: 'Audit',
+          targets: [
+            { kind: 'group', groupId: 'g-audit' },
+            { kind: 'group', groupId: 'g-pilot' },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('keeps a shared target a Conflict even when one policy also excludes that group', () => {
+    const { rules } = ruleModesFromPolicies([
+      policy('Block', adobe('block'), [toGroup('g1'), excludingGroup('g1')]),
+      policy('Audit', adobe('audit'), [toGroup('g1')]),
+    ]);
+    expect(ruleRow(rules, ADOBE).state.kind).toBe('conflict');
+  });
+
+  it('shows a Conflict when one policy targets a group and All users, and another that disagrees targets a different group', () => {
+    const { rules } = ruleModesFromPolicies([
+      policy('Block', adobe('block'), [toGroup('g1'), toAllUsers]),
+      policy('Audit', adobe('audit'), [toGroup('g2')]),
+    ]);
+    expect(ruleRow(rules, ADOBE).state.kind).toBe('conflict');
+  });
+
+  it('does not evaluate assignment filters: the same group with different filters is still a Conflict', () => {
+    const filtered = (filterId: string) => ({
+      ...toGroup('g1'),
+      target: { ...toGroup('g1').target, deviceAndAppManagementAssignmentFilterId: filterId, deviceAndAppManagementAssignmentFilterType: 'include' },
+    });
+    const { rules } = ruleModesFromPolicies([
+      policy('Laptops', adobe('block'), [filtered('f-laptops')]),
+      policy('Desktops', adobe('audit'), [filtered('f-desktops')]),
+    ]);
+    expect(ruleRow(rules, ADOBE).state.kind).toBe('conflict');
+  });
+
+  it('keeps agreeing policies a single Rule mode whatever their targets', () => {
+    const { rules } = ruleModesFromPolicies([
+      policy('Group', adobe('audit'), [toGroup('g1')]),
+      policy('Everyone', adobe('audit'), [toAllDevices]),
+    ]);
+    expect(ruleRow(rules, ADOBE).state).toEqual({ kind: 'mode', mode: 'Audit', policies: ['Group', 'Everyone'] });
+  });
+
+  it('decides across three policies: a Conflict as soon as two that disagree share a target', () => {
+    const shared = ruleModesFromPolicies([
+      policy('Block', adobe('block'), [toGroup('g1')]),
+      policy('Audit A', adobe('audit'), [toGroup('g2')]),
+      policy('Audit B', adobe('audit'), [toGroup('g1')]),
+    ]);
+    expect(ruleRow(shared.rules, ADOBE).state.kind).toBe('conflict');
+
+    const separate = ruleModesFromPolicies([
+      policy('Block', adobe('block'), [toGroup('g1')]),
+      policy('Audit A', adobe('audit'), [toGroup('g2')]),
+      policy('Audit B', adobe('audit'), [toGroup('g2'), toGroup('g3')]),
+    ]);
+    expect(ruleRow(separate.rules, ADOBE).state.kind).toBe('differs-by-group');
+  });
+
+  it('treats an assignment target it does not know as shared, so it never hides a Conflict', () => {
+    const { rules } = ruleModesFromPolicies([
+      policy('Block', adobe('block'), [{ target: { '@odata.type': '#microsoft.graph.configurationManagerCollectionAssignmentTarget', collectionId: 'c1' } }]),
+      policy('Audit', adobe('audit'), [toGroup('g2')]),
+    ]);
+    expect(ruleRow(rules, ADOBE).state.kind).toBe('conflict');
+  });
+
+  it('ignores policies that are not assigned, and says which', () => {
+    const result = ruleModesFromPolicies([policy('Draft', adobe('block'), [])]);
     expect(ruleRow(result.rules, ADOBE).state).toMatchObject({ kind: 'mode', mode: 'Not configured' });
     expect(result.unassignedPolicies).toEqual(['Draft']);
+  });
+
+  it('counts a policy assigned only to excluded groups as not assigned', () => {
+    const result = ruleModesFromPolicies([
+      policy('Excluded only', adobe('block'), [excludingGroup('g1')]),
+      policy('Audit', adobe('audit'), [toGroup('g2')]),
+    ]);
+    expect(ruleRow(result.rules, ADOBE).state).toEqual({ kind: 'mode', mode: 'Audit', policies: ['Audit'] });
+    expect(result.unassignedPolicies).toEqual(['Excluded only']);
+  });
+
+  it('reads include targets from Graph assignments and leaves out exclusions', () => {
+    expect(assignmentTargets([toGroup('g1'), excludingGroup('g2'), toAllDevices, toAllUsers, { target: {} }, null])).toEqual([
+      { kind: 'group', groupId: 'g1' },
+      { kind: 'all-devices' },
+      { kind: 'all-users' },
+      { kind: 'other', type: 'unknown' },
+    ]);
   });
 
   it('ignores policies without ASR rules', () => {

@@ -58,5 +58,23 @@ export const otherSettings = {
   ],
 };
 
-export const groupAssignment = { value: [{ id: 'a1', target: { '@odata.type': '#microsoft.graph.groupAssignmentTarget', groupId: 'g1' } }] };
-export const noAssignments = { value: [] };
+// Assignment targets as GET /deviceManagement/configurationPolicies/{id}/assignments returns them
+// (Graph beta deviceManagementConfigurationPolicyAssignment).
+const assignment = (target: Record<string, unknown>) => ({
+  id: `a-${String(target['groupId'] ?? target['@odata.type'])}`,
+  source: 'direct',
+  sourceId: null,
+  target: {
+    deviceAndAppManagementAssignmentFilterId: null,
+    deviceAndAppManagementAssignmentFilterType: 'none',
+    ...target,
+  },
+});
+
+export const toGroup = (groupId: string) => assignment({ '@odata.type': '#microsoft.graph.groupAssignmentTarget', groupId });
+export const excludingGroup = (groupId: string) =>
+  assignment({ '@odata.type': '#microsoft.graph.exclusionGroupAssignmentTarget', groupId });
+export const toAllDevices = assignment({ '@odata.type': '#microsoft.graph.allDevicesAssignmentTarget' });
+export const toAllUsers = assignment({ '@odata.type': '#microsoft.graph.allLicensedUsersAssignmentTarget' });
+
+export const groupAssignment = { value: [toGroup('g1')] };

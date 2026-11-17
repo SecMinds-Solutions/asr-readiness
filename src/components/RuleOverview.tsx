@@ -1,6 +1,6 @@
 import { SecMinds } from '../design-system';
 import type { AsrRule } from '../analysis/asrRules';
-import type { RuleMode, RuleState } from '../analysis/intuneRuleModes';
+import type { AssignmentTarget, PolicyRuleMode, RuleMode, RuleState } from '../analysis/intuneRuleModes';
 import type { RuleOverview } from '../analysis/ruleOverview';
 
 const { Alert, Badge, Button, Card, Spinner, Table } = SecMinds;
@@ -15,14 +15,45 @@ const TONE: Record<RuleMode, BadgeTone> = {
   Block: 'success',
 };
 
+/** Graph returns group IDs, not names; reading group names would need a scope ADR-0002 does not allow. */
+function targetText(target: AssignmentTarget): string {
+  switch (target.kind) {
+    case 'all-devices':
+      return 'All devices';
+    case 'all-users':
+      return 'All users';
+    case 'group':
+      return `group ${target.groupId}`;
+    case 'other':
+      return 'a target type this app does not recognise';
+  }
+}
+
+const policiesText = (policies: PolicyRuleMode[]) =>
+  policies.map(({ policy, mode, targets }) => `${policy}: ${mode} (${targets.map(targetText).join(', ')})`).join('; ');
+
 function RuleModeCell({ state }: { state: RuleState }) {
-  if (state.kind === 'mode') return <Badge tone={TONE[state.mode]}>{state.mode}</Badge>;
-  return (
-    <>
-      <Badge tone="danger">Conflict</Badge>
-      <span className="app-hint app-block">{state.policies.map(({ policy, mode }) => `${policy}: ${mode}`).join('; ')}</span>
-    </>
-  );
+  switch (state.kind) {
+    case 'mode':
+      return <Badge tone={TONE[state.mode]}>{state.mode}</Badge>;
+    case 'conflict':
+      return (
+        <>
+          <Badge tone="danger">Conflict</Badge>
+          <span className="app-hint app-block app-break">{policiesText(state.policies)}</span>
+        </>
+      );
+    case 'differs-by-group':
+      return (
+        <>
+          <Badge tone="neutral">Differs by group</Badge>
+          <span className="app-hint app-block app-break">{policiesText(state.policies)}</span>
+          <span className="app-hint app-block">
+            A Conflict only on a device that is in groups with different Rule modes, for example through nested groups.
+          </span>
+        </>
+      );
+  }
 }
 
 const devicesText = (count: number, total: number) => `${count} of ${total} ${total === 1 ? 'device' : 'devices'}`;
@@ -46,8 +77,9 @@ export function RuleOverviewView({ overview: { modes, coverage } }: { overview: 
       )}
       {conflicts > 0 && (
         <Alert tone="warning" title="Conflicting Intune policies">
-          {conflicts} ASR {conflicts === 1 ? 'rule has a conflict' : 'rules have a conflict'}: Intune policies set different
-          Rule modes. On a device that gets both, Intune applies neither until the policies agree.
+          {conflicts} ASR {conflicts === 1 ? 'rule has a conflict' : 'rules have a conflict'}: Intune policies assigned to the
+          same group, or to All devices or All users, set different Rule modes. On a device that gets both, Intune applies
+          neither until the policies agree.
         </Alert>
       )}
       {(modes.unassignedPolicies.length > 0 || modes.unrecognisedSettings.length > 0) && (

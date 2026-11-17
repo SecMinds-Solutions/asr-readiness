@@ -1,13 +1,13 @@
 import { render, screen, within } from '@testing-library/react';
 import { ruleModesFromPolicies } from '../analysis/intuneRuleModes';
-import { asrSettings, choice } from '../analysis/fixtures/intunePolicies';
+import { asrSettings, choice, toAllDevices, toGroup } from '../analysis/fixtures/intunePolicies';
 import type { RuleOverview } from '../analysis/ruleOverview';
 import { RuleOverviewView } from './RuleOverview';
 
 const ADOBE = '7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c';
 
 function overview(overrides: Partial<RuleOverview['coverage']> = {}, policies = [
-  { id: 'p1', name: 'ASR pilot', assigned: true, settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value },
+  { id: 'p1', name: 'ASR pilot', assignments: [toAllDevices], settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value },
 ]): RuleOverview {
   return {
     modes: ruleModesFromPolicies(policies),
@@ -33,15 +33,33 @@ describe('RuleOverviewView', () => {
     render(
       <RuleOverviewView
         overview={overview({}, [
-          { id: 'p1', name: 'Pilot', assigned: true, settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')).value },
-          { id: 'p2', name: 'All devices', assigned: true, settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value },
+          { id: 'p1', name: 'Pilot', assignments: [toGroup('g-pilot')], settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')).value },
+          { id: 'p2', name: 'Baseline', assignments: [toAllDevices], settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value },
         ])}
       />,
     );
     const adobe = rowOf('Block Adobe Reader from creating child processes');
     expect(within(adobe).getByText('Conflict')).toBeInTheDocument();
-    expect(within(adobe).getByText('Pilot: Block; All devices: Audit')).toBeInTheDocument();
+    expect(within(adobe).getByText('Pilot: Block (group g-pilot); Baseline: Audit (All devices)')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent(/1 ASR rule has a conflict/);
+  });
+
+  it('shows Rule modes that differ by group without the danger tone or the conflict warning, and says when it would be a conflict', () => {
+    const { container } = render(
+      <RuleOverviewView
+        overview={overview({}, [
+          { id: 'p1', name: 'CIS-ASR-L1', assignments: [toGroup('g-block')], settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')).value },
+          { id: 'p2', name: 'CIS-ASR-L1-AUDIT', assignments: [toGroup('g-audit')], settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value },
+        ])}
+      />,
+    );
+    const adobe = rowOf('Block Adobe Reader from creating child processes');
+    expect(within(adobe).getByText('Differs by group')).toBeInTheDocument();
+    expect(within(adobe).queryByText('Conflict')).toBeNull();
+    expect(within(adobe).getByText('CIS-ASR-L1: Block (group g-block); CIS-ASR-L1-AUDIT: Audit (group g-audit)')).toBeInTheDocument();
+    expect(within(adobe).getByText(/A Conflict only on a device that is in groups with different Rule modes/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(container.querySelector('.sm-tone-danger')).toBeNull();
   });
 
   it('warns about devices without Intune management, with their number', () => {
@@ -71,8 +89,8 @@ describe('RuleOverviewView', () => {
     render(
       <RuleOverviewView
         overview={overview({}, [
-          { id: 'p1', name: 'Draft', assigned: false, settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')).value },
-          { id: 'p2', name: 'Future', assigned: true, settings: asrSettings(choice('blocksomethingnew', 'audit')).value },
+          { id: 'p1', name: 'Draft', assignments: [], settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')).value },
+          { id: 'p2', name: 'Future', assignments: [toAllDevices], settings: asrSettings(choice('blocksomethingnew', 'audit')).value },
         ])}
       />,
     );

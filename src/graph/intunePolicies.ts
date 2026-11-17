@@ -6,16 +6,6 @@ const BASE = '/deviceManagement/configurationPolicies';
 const CONCURRENCY = 4;
 
 type Json = Record<string, unknown>;
-const isObject = (value: unknown): value is Json => typeof value === 'object' && value !== null;
-
-/** Assigned means at least one target that includes devices or users, not only exclusions. */
-const isAssigned = (assignments: unknown[]) =>
-  assignments.some(
-    (assignment) =>
-      isObject(assignment) &&
-      isObject(assignment['target']) &&
-      assignment['target']['@odata.type'] !== '#microsoft.graph.exclusionGroupAssignmentTarget',
-  );
 
 async function inBatches<T, R>(items: T[], work: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = [];
@@ -27,7 +17,8 @@ async function inBatches<T, R>(items: T[], work: (item: T) => Promise<R>): Promi
 
 /**
  * The Tenant's Windows settings catalog policies (Graph beta, the only version that has them)
- * with their settings; assignments are read only for policies that hold ASR rules.
+ * with their settings; assignments are read only for policies that hold ASR rules, and passed on
+ * as Graph returns them for the analysis to read.
  */
 export async function fetchIntunePolicies(graph: GraphClient): Promise<IntunePolicy[]> {
   const listed = await graph.getAll<Json>(`${BASE}?$select=id,name,platforms`, { version: 'beta' });
@@ -36,7 +27,7 @@ export async function fetchIntunePolicies(graph: GraphClient): Promise<IntunePol
     const id = String(policy['id']);
     const path = `${BASE}/${encodeURIComponent(id)}`;
     const settings = await graph.getAll<unknown>(`${path}/settings`, { version: 'beta' });
-    const assigned = hasAsrRules(settings) && isAssigned(await graph.getAll<unknown>(`${path}/assignments`, { version: 'beta' }));
-    return { id, name: String(policy['name'] ?? id), settings, assigned };
+    const assignments = hasAsrRules(settings) ? await graph.getAll<unknown>(`${path}/assignments`, { version: 'beta' }) : [];
+    return { id, name: String(policy['name'] ?? id), settings, assignments };
   });
 }

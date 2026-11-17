@@ -14,6 +14,14 @@ _Avoid_: policy, setting
 How an ASR rule is configured in a tenant: Not configured, Disabled, Audit, Warn or Block.
 _Avoid_: state, action
 
+**Conflict**:
+Intune policies that set different Rule modes for one ASR rule and share an assignment target: the same group, or All devices, All users or a target type the app does not recognise on either side. Such policies may reach the same devices, and on a device that gets both Intune applies neither until the policies agree. Exclusions and assignment filters are not taken into account.
+_Avoid_: clash, overlap
+
+**Differs by group**:
+Intune policies that set different Rule modes for one ASR rule and are assigned to different groups, such as an audit group and a block group. Each device gets the Rule mode of its group. It is a Conflict only on a device that is in groups with different Rule modes, which the app cannot see without reading group members.
+_Avoid_: split mode, mixed mode, partial conflict
+
 **Audit event**:
 A record that an ASR rule in Audit mode would have blocked something on a device.
 _Avoid_: alert, detection, hit

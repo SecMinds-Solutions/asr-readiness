@@ -1,4 +1,4 @@
-import { asrSettings, choice, groupAssignment, noAssignments, otherSettings } from '../analysis/fixtures/intunePolicies';
+import { asrSettings, choice, excludingGroup, groupAssignment, otherSettings, toGroup } from '../analysis/fixtures/intunePolicies';
 import type { GraphClient } from './client';
 import { fetchIntunePolicies } from './intunePolicies';
 
@@ -29,33 +29,23 @@ describe('fetchIntunePolicies', () => {
       '/deviceManagement/configurationPolicies/p2/settings': otherSettings.value,
     });
     const policies = await fetchIntunePolicies(graph);
-    expect(policies.map(({ id, name, assigned }) => ({ id, name, assigned }))).toEqual([
-      { id: 'p1', name: 'ASR rules', assigned: true },
-      { id: 'p2', name: 'Antivirus', assigned: false },
+    expect(policies.map(({ id, name, assignments }) => ({ id, name, assignments }))).toEqual([
+      { id: 'p1', name: 'ASR rules', assignments: groupAssignment.value },
+      { id: 'p2', name: 'Antivirus', assignments: [] },
     ]);
     expect(policies[0]?.settings).toHaveLength(1);
     for (const [, options] of vi.mocked(graph.getAll).mock.calls) expect(options).toEqual({ version: 'beta' });
     expect(vi.mocked(graph.getAll).mock.calls.map(([path]) => path)).not.toContain('/deviceManagement/configurationPolicies/p2/assignments');
   });
 
-  it('counts a policy assigned only to excluded groups as not assigned', async () => {
+  it('passes on the assignments as Graph returns them, exclusions included, for the analysis to read', async () => {
+    const assignments = [toGroup('g1'), excludingGroup('g2')];
     const graph = fakeGraph({
-      '/deviceManagement/configurationPolicies?$select=id,name,platforms': [{ id: 'p1', name: 'Excluded', platforms: 'windows10' }],
+      '/deviceManagement/configurationPolicies?$select=id,name,platforms': [{ id: 'p1', name: 'Split', platforms: 'windows10' }],
       '/deviceManagement/configurationPolicies/p1/settings': asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')).value,
-      '/deviceManagement/configurationPolicies/p1/assignments': [
-        { id: 'a', target: { '@odata.type': '#microsoft.graph.exclusionGroupAssignmentTarget', groupId: 'g' } },
-      ],
+      '/deviceManagement/configurationPolicies/p1/assignments': assignments,
     });
-    await expect(fetchIntunePolicies(graph)).resolves.toMatchObject([{ assigned: false }]);
-  });
-
-  it('counts an unassigned policy as not assigned', async () => {
-    const graph = fakeGraph({
-      '/deviceManagement/configurationPolicies?$select=id,name,platforms': [{ id: 'p1', name: 'Draft', platforms: 'windows10' }],
-      '/deviceManagement/configurationPolicies/p1/settings': asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')).value,
-      '/deviceManagement/configurationPolicies/p1/assignments': noAssignments.value,
-    });
-    await expect(fetchIntunePolicies(graph)).resolves.toMatchObject([{ assigned: false }]);
+    await expect(fetchIntunePolicies(graph)).resolves.toMatchObject([{ assignments }]);
   });
 
   it('escapes the policy ID in the path', async () => {

@@ -26,6 +26,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- ASR rules overview: Intune policies that set different Rule modes are a Conflict only when they share an assignment target (the same group, All devices or All users). Policies on different groups now show as Differs by group, with each Rule mode and its group, without the danger tone and without counting towards the conflict warning. `CONTEXT.md` defines both terms.
 - README: development commands, a precise description of where the app is hosted, and a note that SecMinds brand assets are not covered by the MIT licence.
 
 - `.gitignore`: removed an ignore pattern that does not apply to files in this repository.
