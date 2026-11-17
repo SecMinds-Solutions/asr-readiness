@@ -1,6 +1,6 @@
-import { isUserWritableLocation } from './userWritable';
+import { userWritableLocation } from './userWritable';
 
-describe('isUserWritableLocation', () => {
+describe('userWritableLocation', () => {
   it.each([
     'C:\\Users\\ada\\Downloads\\setup.exe',
     'C:\\Users\\ada\\AppData\\Local\\Temp\\x.exe',
@@ -29,7 +29,7 @@ describe('isUserWritableLocation', () => {
     '\\\\?\\C:\\Users\\ada\\x.exe',
     '\\Device\\HarddiskVolume3\\Program Files\\x.exe',
   ])('treats %s as a User-writable location', (path) => {
-    expect(isUserWritableLocation(path)).toBe(true);
+    expect(userWritableLocation(path)).not.toBeNull();
   });
 
   it.each([
@@ -42,6 +42,23 @@ describe('isUserWritableLocation', () => {
     'C:\\Program Files\\Contoso',
     '\\\\?\\C:\\Program Files\\Contoso\\addin.exe',
   ])('treats %s as a location ordinary users cannot write to', (path) => {
-    expect(isUserWritableLocation(path)).toBe(false);
+    expect(userWritableLocation(path)).toBeNull();
+  });
+
+  it.each([
+    ['C:\\Users\\ada\\Downloads\\setup.exe', 'the Downloads folder'],
+    ['C:\\Users\\ada\\AppData\\Local\\Temp\\x.exe', 'the temp folder'],
+    ['C:\\Users\\ada\\AppData\\Roaming\\tool\\tool.exe', 'AppData'],
+    ['C:\\Users\\Public\\run.exe', 'a user profile'],
+    ['C:\\ProgramData\\Vendor\\agent.exe', 'ProgramData'],
+    ['C:\\Windows\\Temp\\x.exe', 'a folder in Windows where ordinary users can create files'],
+    ['C:\\Tools\\tool.exe', 'a folder on C: outside Program Files and Windows'],
+    ['E:\\Apps\\app.exe', 'a drive other than C:, which may be removable'],
+    ['\\\\fileserver\\share\\app.exe', 'a network share'],
+    ['\\Device\\HarddiskVolume3\\Program Files\\x.exe', 'a path that is not on a local drive'],
+    ['setup.exe', 'a path that is not on a local drive'],
+    ['C:\\Program Files\\..\\Users\\ada\\x.exe', 'a path with . or .. in it'],
+  ])('names the kind of User-writable location of %s: %s', (path, name) => {
+    expect(userWritableLocation(path)).toBe(name);
   });
 });

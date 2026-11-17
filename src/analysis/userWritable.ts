@@ -42,10 +42,30 @@ const USER_WRITABLE_WINDOWS_FOLDERS = [
  */
 const normalise = (path: string) => `${path.trim().replace(/\//g, '\\').toLowerCase().replace(/^\\\\\?\\/, '')}\\`;
 
-export function isUserWritableLocation(path: string): boolean {
+/** Names for the kinds of User-writable location, checked in order; the last one catches the rest. */
+const LOCATION_NAMES: readonly { name: string; pattern: RegExp }[] = [
+  { name: 'a network share', pattern: /^\\\\/ },
+  { name: 'a path that is not on a local drive', pattern: /^(?![a-z]:\\)/ },
+  { name: 'a drive other than C:, which may be removable', pattern: /^(?!c:)[a-z]:\\/ },
+  { name: 'the Downloads folder', pattern: /^c:\\users\\[^\\]+\\downloads\\/ },
+  { name: 'the temp folder', pattern: /^c:\\users\\[^\\]+\\appdata\\local\\temp\\/ },
+  { name: 'AppData', pattern: /^c:\\users\\[^\\]+\\appdata\\/ },
+  { name: 'a user profile', pattern: /^c:\\users\\/ },
+  { name: 'ProgramData', pattern: /^c:\\programdata\\/ },
+  { name: 'a folder in Windows where ordinary users can create files', pattern: /^c:\\windows\\/ },
+  { name: 'a folder on C: outside Program Files and Windows', pattern: /^/ },
+];
+
+/**
+ * The kind of User-writable location a path is in, in words for the User, or null when ordinary
+ * users cannot write there. Whether a path is User-writable is decided by the folder lists above;
+ * the name only says which kind it is.
+ */
+export function userWritableLocation(path: string): string | null {
   const normalised = normalise(path);
-  if (normalised.split('\\').some((segment) => segment === '..' || segment === '.')) return true;
+  if (normalised.split('\\').some((segment) => segment === '..' || segment === '.')) return 'a path with . or .. in it';
   const inAdminOnly = ADMIN_ONLY_FOLDERS.some((folder) => normalised.startsWith(folder));
   const inWritableWindows = USER_WRITABLE_WINDOWS_FOLDERS.some((folder) => normalised.startsWith(folder));
-  return !inAdminOnly || inWritableWindows;
+  if (inAdminOnly && !inWritableWindows) return null;
+  return LOCATION_NAMES.find(({ pattern }) => pattern.test(normalised))?.name ?? null;
 }

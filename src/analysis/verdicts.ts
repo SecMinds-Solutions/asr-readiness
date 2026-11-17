@@ -5,7 +5,7 @@ import type { AuditPeriod, AuditPeriods } from './auditPeriods';
 import type { RuleModes, RuleState } from './intuneRuleModes';
 import type { Coverage } from './ruleOverview';
 import { MAX_SUGGESTED_EXCLUSIONS, MINIMUM_AUDIT_PERIOD_DAYS, OBSERVATION_WINDOW_DAYS } from './thresholds';
-import { isUserWritableLocation } from './userWritable';
+import { userWritableLocation } from './userWritable';
 
 export type Verdict = 'Ready to block' | 'Ready with exclusions' | 'Not ready' | 'No evidence';
 
@@ -88,6 +88,24 @@ function distinctPaths(rule: AsrRule, events: RuleAuditEvents): string[] {
   return [...seen.values()];
 }
 
+/**
+ * For a rule that excludes the file it acts on: why an application that triggered its Audit events
+ * makes excluding that file unsafe, or null. Excluding the file would let an application from a
+ * User-writable location through, and an application whose folder is unknown may be in one.
+ */
+function unsafeApplication(events: RuleAuditEvents): string | null {
+  for (const group of events.groups) {
+    if (!group.applicationFolder) {
+      return `Audit events are triggered by ${group.application || 'an application'} whose folder advanced hunting does not record, so it may run from a User-writable location.`;
+    }
+    const location = userWritableLocation(group.applicationFolder);
+    if (location) {
+      return `Audit events are triggered by an application in a User-writable location (${location}), where ordinary users can replace it: ${group.applicationFolder}`;
+    }
+  }
+  return null;
+}
+
 function judgeEvents(rule: AsrRule, events: RuleAuditEvents, period: AuditPeriod): Judgement {
   const auditFor = `In Audit mode for at least ${days(period.shortestDays)} on every device that reports it`;
   if (events.events === 0) {
@@ -101,10 +119,14 @@ function judgeEvents(rule: AsrRule, events: RuleAuditEvents, period: AuditPeriod
   }
   const found = distinctPaths(rule, events);
   if (found.includes('')) return { verdict: 'Not ready', reason: 'Audit events have no path, so they cannot be excluded.' };
-  const writable = found.find(isUserWritableLocation);
-  if (writable !== undefined) {
-    return { verdict: 'Not ready', reason: `Audit events come from a User-writable location, which is never excluded: ${writable}` };
+  for (const path of found) {
+    const location = userWritableLocation(path);
+    if (location) {
+      return { verdict: 'Not ready', reason: `Audit events come from a User-writable location (${location}), which is never excluded: ${path}` };
+    }
   }
+  const application = rule.excludes === 'target' ? unsafeApplication(events) : null;
+  if (application) return { verdict: 'Not ready', reason: application };
   if (found.length > MAX_SUGGESTED_EXCLUSIONS) {
     return {
       verdict: 'Not ready',

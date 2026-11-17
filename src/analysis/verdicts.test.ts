@@ -187,6 +187,32 @@ describe('verdictsFor', () => {
       expect(found.kind === 'verdict' && found.paths).toEqual([]);
     });
 
+    it('names the kind of User-writable location an Audit event comes from', () => {
+      const found = assessmentOf(input({ groups: [{ path: 'C:\\Users\\ada\\Downloads\\setup.exe', events: 1 }] }));
+      expect(found).toMatchObject({
+        verdict: 'Not ready',
+        reason: 'Audit events come from a User-writable location (the Downloads folder), which is never excluded: C:\\Users\\ada\\Downloads\\setup.exe',
+      });
+    });
+
+    it('when the application that triggered an Audit event runs from a User-writable location, for a rule that excludes the file it acts on', () => {
+      const groups = [{ application: 'tool.exe', folder: 'C:\\Users\\ada\\AppData\\Local\\Temp\\tool.exe', path: safe(1), events: 2 }];
+      expect(assessmentOf(input({ groups }))).toMatchObject({
+        verdict: 'Not ready',
+        reason: expect.stringContaining('triggered by an application in a User-writable location (the temp folder)'),
+      });
+    });
+
+    it('when advanced hunting does not record the folder of the application, for a rule that excludes the file it acts on', () => {
+      const groups = [{ application: 'tool.exe', folder: '', path: safe(1), events: 2 }];
+      expect(assessmentOf(input({ groups }))).toMatchObject({ verdict: 'Not ready', reason: expect.stringContaining('does not record') });
+    });
+
+    it('still allows an application from Program Files for a rule that excludes the file it acts on', () => {
+      const groups = [{ application: 'AcroRd32.exe', folder: 'C:\\Program Files\\Adobe\\Acrobat', path: safe(1), events: 2 }];
+      expect(verdictOf(input({ groups }))).toBe('Ready with exclusions');
+    });
+
     it('when an Audit event has no path, so nothing can be excluded', () => {
       expect(assessmentOf(input({ groups: [{ path: safe(1), events: 3 }, { path: '', events: 1 }] }))).toMatchObject({
         verdict: 'Not ready',

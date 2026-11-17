@@ -29,6 +29,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Verdicts: a rule is Not ready when the application that triggered an Audit event runs from a User-writable location, or from a folder advanced hunting does not record, also for rules whose exclusion would name the file the rule acts on. A Not ready reason names the kind of User-writable location, such as the Downloads folder or ProgramData.
 - ASR rules overview: Intune policies that set different Rule modes are a Conflict only when they share an assignment target (the same group, All devices or All users). Policies on different groups now show as Differs by group, with each Rule mode and its group, without the danger tone and without counting towards the conflict warning. `CONTEXT.md` defines both terms.
 - README: development commands, a precise description of where the app is hosted, and a note that SecMinds brand assets are not covered by the MIT licence.
 

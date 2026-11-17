@@ -43,10 +43,10 @@ _Avoid_: score, status, rating
 The Verdict for a rule that Intune sets to Audit mode (on all groups, or on some when Rule modes differ by group), whose Audit period reaches the Minimum audit period, and that has no audit events in the Observation window.
 
 **Ready with exclusions**:
-The Verdict for a rule whose audit events all come from at most 5 paths, none in a User-writable location, which become its Suggested exclusions. The path is the file the rule blocks: for most rules the file it acts on, for the LSASS credential theft rule the process that accesses LSASS.
+The Verdict for a rule whose audit events all come from at most 5 paths, none in a User-writable location and none triggered by an application in one or in an unknown folder, which become its Suggested exclusions. The path is the file the rule blocks: for most rules the file it acts on, for the LSASS credential theft rule the process that accesses LSASS.
 
 **Not ready**:
-The Verdict for a rule whose audit events are too many, too spread out, or come from a User-writable location, so they cannot be excluded safely.
+The Verdict for a rule whose audit events are too many, too spread out, or come from a User-writable location or from an application that runs from one, so they cannot be excluded safely.
 _Avoid_: too noisy, failed
 
 **No evidence**:
