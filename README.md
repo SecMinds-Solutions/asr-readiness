@@ -43,8 +43,12 @@ ready-made Intune policy that you review and deploy yourself.
   Defender Suite add-on for Business Premium). Defender for Business is not supported
   because it has no advanced hunting; see [ADR-0001](docs/adr/0001-defender-for-endpoint-plan-2-only.md).
 - A one-time admin consent for the app in your tenant.
-- A Defender role that allows advanced hunting and an Intune role that can read
-  configuration policies.
+- For the signed-in User: a Microsoft Defender XDR role with Security data basics (read),
+  or the Microsoft Entra role Security Reader, for advanced hunting; and an Intune role with
+  Device configurations: Read, such as Read Only Operator.
+
+After you sign in, ASR Readiness checks these with one small advanced hunting query and one
+Intune read, and tells you what is missing.
 
 MSPs can analyse customer tenants through GDAP.
 

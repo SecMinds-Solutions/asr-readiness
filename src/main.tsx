@@ -5,6 +5,8 @@ import { readAuthConfig, type AuthConfig } from './auth/config';
 import { adminConsentUrl, readAdminConsentResult } from './auth/consent';
 import { createAuthClient } from './auth/msalAuthClient';
 import { applyTheme } from './theme';
+import { createGraphClient } from './graph/client';
+import { checkReadiness } from './onboarding/readiness';
 import { createUserRecordClient } from './user-record/client';
 
 applyTheme(document.documentElement, window.matchMedia('(prefers-color-scheme: dark)'));
@@ -19,10 +21,12 @@ const signIn = authConfig ? signInSetup(authConfig) : null;
 
 function signInSetup(config: AuthConfig): SignInSetup {
   const client = createAuthClient(config);
+  const graph = createGraphClient(() => client.graphToken());
   return {
     client,
     adminConsentUrl: adminConsentUrl(config),
     userRecord: createUserRecordClient(() => client.userRecordToken()),
+    checkReadiness: () => checkReadiness(graph),
   };
 }
 

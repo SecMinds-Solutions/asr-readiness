@@ -23,6 +23,9 @@ export const SIGN_IN_SCOPES: readonly string[] = [
   'DeviceManagementConfiguration.Read.All',
 ];
 
+/** The Microsoft Graph scopes an Analysis reads with; both are among the sign-in scopes. */
+export const GRAPH_SCOPES: readonly string[] = ['ThreatHunting.Read.All', 'DeviceManagementConfiguration.Read.All'];
+
 /**
  * The scope the app registration exposes for the app's own API, which stores the User record.
  * It is a scope of ASR Readiness itself, not of Microsoft Graph (see ADR-0002).
@@ -39,6 +42,8 @@ export interface AuthClient {
   signOut(): Promise<void>;
   /** An access token for the app's own API, to read and store the User record. */
   userRecordToken(): Promise<string>;
+  /** An access token for Microsoft Graph, to run advanced hunting and read Intune policies. */
+  graphToken(): Promise<string>;
 }
 
 /** The part of MSAL's PublicClientApplication the auth client uses. */
@@ -91,10 +96,11 @@ export function createMsalAuthClient(msal: MsalApp, apiScope: string): AuthClien
     return account ? signedInUserFrom(account) : null;
   }
 
-  async function userRecordToken(): Promise<string> {
+  /** Tokens are issued for one resource at a time: the app's own API, or Microsoft Graph. */
+  async function accessToken(scopes: string[]): Promise<string> {
     const account = msal.getActiveAccount();
     if (!account) throw new Error('Nobody is signed in.');
-    const request = { scopes: [apiScope], account };
+    const request = { scopes, account };
     try {
       return (await msal.acquireTokenSilent(request)).accessToken;
     } catch (error) {
@@ -112,6 +118,7 @@ export function createMsalAuthClient(msal: MsalApp, apiScope: string): AuthClien
     signIn: () =>
       msal.loginRedirect({ scopes: [...SIGN_IN_SCOPES], extraScopesToConsent: [apiScope], prompt: 'select_account' }),
     signOut: () => msal.logoutRedirect({ account: msal.getActiveAccount() }),
-    userRecordToken,
+    userRecordToken: () => accessToken([apiScope]),
+    graphToken: () => accessToken([...GRAPH_SCOPES]),
   };
 }

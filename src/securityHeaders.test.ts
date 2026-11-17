@@ -9,8 +9,8 @@ const directives = new Map(
 );
 
 describe('Content-Security-Policy', () => {
-  it('allows connections only to the app itself and the Microsoft identity platform', () => {
-    expect(directives.get('connect-src')).toEqual(["'self'", 'https://login.microsoftonline.com']);
+  it('allows connections only to the app itself, the Microsoft identity platform and Microsoft Graph', () => {
+    expect(directives.get('connect-src')).toEqual(["'self'", 'https://login.microsoftonline.com', 'https://graph.microsoft.com']);
   });
 
   it('allows scripts only from the app itself', () => {

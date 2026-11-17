@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App, type SignInSetup } from './App';
 import type { AuthClient } from './auth/msalAuthClient';
 import type { SignedInUser } from './auth/user';
+import type { Readiness } from './onboarding/readiness';
 import type { ContactConsent, UserRecordClient } from './user-record/client';
 
 const ada: SignedInUser = {
@@ -17,6 +18,7 @@ function fakeClient(start: () => Promise<SignedInUser | null>): AuthClient {
     signIn: vi.fn(async () => {}),
     signOut: vi.fn(async () => {}),
     userRecordToken: vi.fn(async () => 'api-token'),
+    graphToken: vi.fn(async () => 'graph-token'),
   };
 }
 
@@ -29,8 +31,12 @@ function fakeUserRecord(stored: ContactConsent | null = storedConsent): UserReco
   };
 }
 
-function setup(client: AuthClient, userRecord: UserRecordClient = fakeUserRecord()): SignInSetup {
-  return { client, adminConsentUrl: consentUrl, userRecord };
+function setup(
+  client: AuthClient,
+  userRecord: UserRecordClient = fakeUserRecord(),
+  checkReadiness: () => Promise<Readiness> = async () => ({ status: 'ready', devices: 12 }),
+): SignInSetup {
+  return { client, adminConsentUrl: consentUrl, userRecord, checkReadiness: vi.fn(checkReadiness) };
 }
 
 const findNavbarSignIn = async () => within(screen.getByRole('navigation')).findByRole('button', { name: 'Sign in' });
@@ -193,5 +199,93 @@ describe('App: Contact consent', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 500');
     expect(screen.getByRole('checkbox', { name: /SecMinds may email me/i })).toBeChecked();
     expect(screen.queryByRole('heading', { name: 'Signed in' })).not.toBeInTheDocument();
+  });
+});
+
+describe('App: onboarding check', () => {
+  const signedIn = () => fakeClient(async () => ada);
+  const renderWith = (readiness: () => Promise<Readiness>) => {
+    const signIn = setup(signedIn(), fakeUserRecord(), readiness);
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    return signIn;
+  };
+
+  it('does not check the Tenant before the Contact consent choice is made', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(null));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    await screen.findByRole('checkbox');
+    expect(signIn.checkReadiness).not.toHaveBeenCalled();
+  });
+
+  it('says it is checking the Tenant', async () => {
+    renderWith(() => new Promise(() => {}));
+    expect(await screen.findByText('Checking your Tenant…')).toBeInTheDocument();
+  });
+
+  it('continues to the Analysis for a Supported tenant and a User with the right roles', async () => {
+    renderWith(async () => ({ status: 'ready', devices: 12 }));
+    expect(await screen.findByRole('heading', { name: 'Ready for an Analysis' })).toBeInTheDocument();
+    expect(screen.getByText(/12 devices/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Signed in' })).toBeInTheDocument();
+  });
+
+  it('explains Plan 2 and Defender for Business when the Tenant has no advanced hunting', async () => {
+    renderWith(async () => ({ status: 'not-supported', details: "'DeviceInfo' could not be resolved." }));
+    expect(await screen.findByRole('heading', { name: 'Your Tenant is not supported' })).toBeInTheDocument();
+    expect(screen.getByText(/Defender for Endpoint Plan 2/)).toBeInTheDocument();
+    expect(screen.getByText(/Defender for Business/)).toBeInTheDocument();
+    expect(screen.getByText("'DeviceInfo' could not be resolved.")).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Ready for an Analysis' })).not.toBeInTheDocument();
+  });
+
+  it('says there is nothing to analyse yet when there are no onboarded devices, without calling the Tenant unsupported', async () => {
+    renderWith(async () => ({ status: 'no-devices' }));
+    expect(await screen.findByRole('heading', { name: 'No devices to analyse yet' })).toBeInTheDocument();
+    expect(screen.getByText(/onboarded to Defender for Endpoint/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Your Tenant is not supported' })).not.toBeInTheDocument();
+  });
+
+  it('names the missing advanced hunting role and where to assign it', async () => {
+    renderWith(async () => ({
+      status: 'access-needed',
+      advancedHunting: 'refused',
+      intune: 'allowed',
+      details: ['Advanced hunting: Forbidden.'],
+    }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Security data basics (read)');
+    expect(alert).toHaveTextContent('Security Reader');
+    expect(alert).toHaveTextContent(/Permissions and roles/);
+    expect(alert).toHaveTextContent(/View data/);
+    expect(alert).toHaveTextContent(/Plan 2/);
+    expect(alert).not.toHaveTextContent('Read Only Operator');
+    expect(alert).toHaveTextContent('Advanced hunting: Forbidden.');
+  });
+
+  it('names the missing Intune role and where to assign it', async () => {
+    renderWith(async () => ({ status: 'access-needed', advancedHunting: 'allowed', intune: 'refused', details: ['Intune: Forbidden.'] }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Read Only Operator');
+    expect(alert).toHaveTextContent(/Tenant administration › Roles/);
+    expect(alert).not.toHaveTextContent('Security data basics (read)');
+  });
+
+  it('checks again after a role was assigned', async () => {
+    const signIn = renderWith(async () => ({ status: 'access-needed', advancedHunting: 'allowed', intune: 'refused', details: [] }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check again' }));
+    await waitFor(() => expect(signIn.checkReadiness).toHaveBeenCalledTimes(2));
+  });
+
+  it('shows a failed check with the reason and lets the User try again', async () => {
+    const signIn = renderWith(async () => ({ status: 'failed', message: 'Advanced hunting: Service unavailable.' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Advanced hunting: Service unavailable.');
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(signIn.checkReadiness).toHaveBeenCalledTimes(2));
+  });
+
+  it('shows an unexpected error of the check as failed', async () => {
+    renderWith(async () => Promise.reject(new Error('Nobody is signed in.')));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nobody is signed in.');
   });
 });

@@ -47,6 +47,6 @@ describe('createUserRecordClient', () => {
     const hanging = vi.fn<typeof fetch>(
       (_, init) => new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))),
     );
-    await expect(createUserRecordClient(async () => 't', hanging, 20).contactConsent()).rejects.toThrow();
+    await expect(createUserRecordClient(async () => 't', hanging, 20).contactConsent()).rejects.toMatchObject({ name: 'TimeoutError' });
   });
 });

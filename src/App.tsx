@@ -6,6 +6,16 @@ import { useAuth } from './auth/useAuth';
 import type { SignedInUser } from './auth/user';
 import { ContactConsentCard, LoadingUserRecord, UserRecordFailedAlert } from './components/ContactConsent';
 import {
+  AccessNeededAlert,
+  CheckFailedAlert,
+  CheckingTenant,
+  NoDevicesCard,
+  NotSupportedCard,
+  ReadyCard,
+} from './components/Onboarding';
+import type { Readiness } from './onboarding/readiness';
+import { useReadiness } from './onboarding/useReadiness';
+import {
   AdminConsentResultAlert,
   CheckingSignIn,
   ConsentRequiredAlert,
@@ -25,6 +35,8 @@ export interface SignInSetup {
   client: AuthClient;
   adminConsentUrl: string;
   userRecord: UserRecordClient;
+  /** Whether the Tenant is a Supported tenant and the User has the roles an Analysis needs. */
+  checkReadiness: () => Promise<Readiness>;
 }
 
 export function App({
@@ -69,13 +81,21 @@ function SignInPage({ setup, adminConsentResult }: { setup: SignInSetup; adminCo
       )}
       {state.status === 'consent-required' && <ConsentRequiredAlert adminConsentUrl={setup.adminConsentUrl} />}
       {state.status === 'failed' && <SignInFailedAlert message={state.message} onRetry={signIn} />}
-      {state.status === 'signed-in' && <SignedIn user={state.user} userRecord={setup.userRecord} />}
+      {state.status === 'signed-in' && <SignedIn user={state.user} userRecord={setup.userRecord} checkReadiness={setup.checkReadiness} />}
     </Page>
   );
 }
 
 /** A new User makes their Contact consent choice before anything else; a returning User is not asked again. */
-function SignedIn({ user, userRecord }: { user: SignedInUser; userRecord: UserRecordClient }) {
+function SignedIn({
+  user,
+  userRecord,
+  checkReadiness,
+}: {
+  user: SignedInUser;
+  userRecord: UserRecordClient;
+  checkReadiness: () => Promise<Readiness>;
+}) {
   const { state, retry, saveContactConsent } = useUserRecord(userRecord);
   switch (state.status) {
     case 'loading':
@@ -85,7 +105,38 @@ function SignedIn({ user, userRecord }: { user: SignedInUser; userRecord: UserRe
     case 'choice-needed':
       return <ContactConsentCard onContinue={saveContactConsent} saving={state.saving} error={state.error} />;
     case 'known':
-      return <SignedInCard user={user} />;
+      return (
+        <>
+          <SignedInCard user={user} />
+          <OnboardingCheck checkReadiness={checkReadiness} />
+        </>
+      );
+  }
+}
+
+/** After the Contact consent choice: is this a Supported tenant, and may this User run an Analysis? */
+function OnboardingCheck({ checkReadiness }: { checkReadiness: () => Promise<Readiness> }) {
+  const { state, checkAgain } = useReadiness(checkReadiness);
+  switch (state.status) {
+    case 'checking':
+      return <CheckingTenant />;
+    case 'ready':
+      return <ReadyCard devices={state.devices} />;
+    case 'no-devices':
+      return <NoDevicesCard onCheckAgain={checkAgain} />;
+    case 'not-supported':
+      return <NotSupportedCard details={state.details} />;
+    case 'access-needed':
+      return (
+        <AccessNeededAlert
+          advancedHunting={state.advancedHunting}
+          intune={state.intune}
+          details={state.details}
+          onCheckAgain={checkAgain}
+        />
+      );
+    case 'failed':
+      return <CheckFailedAlert message={state.message} onRetry={checkAgain} />;
   }
 }
 

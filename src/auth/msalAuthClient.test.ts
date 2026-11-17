@@ -1,6 +1,13 @@
 import { InteractionRequiredAuthError, type AccountInfo, type AuthenticationResult } from '@azure/msal-browser';
 import type { Mock } from 'vitest';
-import { createMsalAuthClient, msalConfiguration, SIGN_IN_SCOPES, userRecordScope, type MsalApp } from './msalAuthClient';
+import {
+  createMsalAuthClient,
+  GRAPH_SCOPES,
+  msalConfiguration,
+  SIGN_IN_SCOPES,
+  userRecordScope,
+  type MsalApp,
+} from './msalAuthClient';
 
 const config = { clientId: '0b5c3a1e-7d2f-4c8a-9e6b-1f2a3b4c5d6e', redirectUri: 'https://asr.example.com/' };
 const homeTenantId = '11111111-1111-1111-1111-111111111111';
@@ -138,6 +145,16 @@ describe('createMsalAuthClient', () => {
     const client = createMsalAuthClient(msal, apiScope);
     await client.start();
     await expect(client.userRecordToken()).rejects.toThrow('network');
+  });
+
+  it('gets an access token for Microsoft Graph with the read scopes an Analysis needs', async () => {
+    const msal = fakeMsal({ getAllAccounts: vi.fn<MsalApp['getAllAccounts']>(() => [account('Ada')]) });
+    const client = createMsalAuthClient(msal, apiScope);
+    await client.start();
+    await expect(client.graphToken()).resolves.toBe('api-token');
+    expect(msal.acquireTokenSilent).toHaveBeenCalledWith({ scopes: [...GRAPH_SCOPES], account: msal.active });
+    expect([...GRAPH_SCOPES].sort()).toEqual(['DeviceManagementConfiguration.Read.All', 'ThreatHunting.Read.All']);
+    expect(GRAPH_SCOPES.every((scope) => SIGN_IN_SCOPES.includes(scope))).toBe(true);
   });
 
   it('refuses to get a token when nobody is signed in', async () => {
