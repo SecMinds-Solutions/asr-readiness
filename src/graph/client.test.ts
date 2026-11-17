@@ -43,6 +43,40 @@ describe('createGraphClient', () => {
     expect(error).toMatchObject({ status: 403, code: 'Forbidden', message: 'Missing role.' });
   });
 
+  describe('an Intune error wrapped in the Graph message', () => {
+    const inner = JSON.stringify({ _version: 3, Message: 'An error has occurred - Activity ID: a1 - Url: https://intune' }, null, 2);
+    const wrapped = (errorCode: string, spacing?: number) =>
+      JSON.stringify({ ErrorCode: errorCode, Message: inner, Target: null, InstanceAnnotations: [] }, null, spacing);
+
+    it.each([400, 401, 500])('reports a wrapped Forbidden under HTTP %i as a 403 with the readable message', async (status) => {
+      const { client } = setup(json(status, { error: { code: 'UnknownError', message: wrapped('Forbidden') } }));
+      await expect(client.get('/x')).rejects.toMatchObject({
+        status: 403,
+        code: 'Forbidden',
+        message: 'An error has occurred - Activity ID: a1 - Url: https://intune',
+      });
+    });
+
+    it('also reads the wrapper when Intune puts spaces in its JSON', async () => {
+      const { client } = setup(json(401, { error: { code: 'UnknownError', message: wrapped('Forbidden', 2) } }));
+      await expect(client.get('/x')).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('keeps the status of another wrapped Intune error, with the readable message', async () => {
+      const { client } = setup(json(500, { error: { code: 'UnknownError', message: wrapped('InternalServerError') } }));
+      await expect(client.get('/x')).rejects.toMatchObject({
+        status: 500,
+        code: 'UnknownError',
+        message: 'An error has occurred - Activity ID: a1 - Url: https://intune',
+      });
+    });
+
+    it('leaves a message that is not an Intune wrapper as it is', async () => {
+      const { client } = setup(json(401, { error: { code: 'InvalidAuthenticationToken', message: '{"error":"expired"}' } }));
+      await expect(client.get('/x')).rejects.toMatchObject({ status: 401, message: '{"error":"expired"}' });
+    });
+  });
+
   it('keeps the status when the error body is not JSON', async () => {
     const { client } = setup(new Response('Bad gateway', { status: 502 }));
     await expect(client.get('/x')).rejects.toMatchObject({ status: 502, code: '' });

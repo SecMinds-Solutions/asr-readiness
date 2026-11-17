@@ -31,8 +31,9 @@ const settle = <T>(promise: Promise<T>): Promise<Outcome<T>> =>
     (error: unknown) => ({ ok: false, error }),
   );
 
-// 403 means the User lacks a role (or, for advanced hunting, the Tenant a licence). A 401 is a
-// token problem, not a missing role, so it is reported as failed.
+// 403 means the User lacks a role (or, for advanced hunting, the Tenant a licence); the Graph client
+// also reports Intune's wrapped Forbidden as 403. A 401 is a token problem, not a missing role, so
+// it is reported as failed.
 const isRefused = (error: unknown) => error instanceof GraphError && error.status === 403;
 
 /** The query runs only where Defender for Endpoint feeds advanced hunting; elsewhere its table is unknown. */

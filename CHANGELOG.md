@@ -33,3 +33,7 @@ All notable changes to this project are documented in this file.
 - README: the Trust section lists exactly what the User record holds and where it is stored.
 - README: the requirements name the Defender and Intune roles a User needs.
 - ADR-0001 describes how onboarding detects a Supported tenant without reading licences.
+
+### Fixed
+
+- The onboarding check said "Your Tenant could not be checked" when Intune refused to read its policies, because Intune does not always answer a refusal with HTTP 403. It now says access is needed, names the Intune role to assign and shows Intune's own message instead of its raw error.

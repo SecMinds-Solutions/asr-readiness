@@ -36,6 +36,35 @@ export interface GraphClientOptions {
   timeoutMs?: number;
 }
 
+const parse = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+};
+
+const stringField = (value: unknown, key: string): string | undefined => {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const field: unknown = (value as Record<string, unknown>)[key];
+  return typeof field === 'string' ? field : undefined;
+};
+
+/**
+ * Intune answers through Graph with its own error wrapped as JSON in Graph's message:
+ * {"ErrorCode":"Forbidden","Message":"{\"Message\":\"An error has occurred ...\"}"}. The outer status
+ * of a refusal is not always 403, so a wrapped Forbidden becomes a 403 here, and the readable inner
+ * message replaces the JSON.
+ */
+function unwrapIntune(status: number, code: string, message: string): GraphError {
+  const wrapper = parse(message);
+  const intuneCode = stringField(wrapper, 'ErrorCode');
+  if (intuneCode === undefined) return new GraphError(status, code, message);
+  const outer = stringField(wrapper, 'Message') ?? '';
+  const readable = stringField(parse(outer), 'Message') ?? (outer || message);
+  return intuneCode === 'Forbidden' ? new GraphError(403, 'Forbidden', readable) : new GraphError(status, code, readable);
+}
+
 async function errorFrom(response: Response): Promise<GraphError> {
   let code = '';
   let message = `Microsoft Graph answered HTTP ${response.status}.`;
@@ -46,7 +75,7 @@ async function errorFrom(response: Response): Promise<GraphError> {
   } catch {
     // Not JSON: keep the status-only message.
   }
-  return new GraphError(response.status, code, message);
+  return unwrapIntune(response.status, code, message);
 }
 
 function retryWaitMs(response: Response): number {

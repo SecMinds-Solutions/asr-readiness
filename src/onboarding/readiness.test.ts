@@ -1,4 +1,4 @@
-import { GraphError, type GraphClient } from '../graph/client';
+import { createGraphClient, GraphError, type GraphClient } from '../graph/client';
 import { HUNTING_CHECK_QUERY } from '../analysis/queries';
 import { checkReadiness } from './readiness';
 
@@ -83,6 +83,29 @@ describe('checkReadiness', () => {
       intune: 'refused',
       details: ['Intune: No Intune role.'],
     });
+  });
+
+  it('needs access when Intune wraps its refusal in another HTTP status', async () => {
+    const wrapped = JSON.stringify({ ErrorCode: 'Forbidden', Message: JSON.stringify({ Message: 'An error has occurred.' }) });
+    const fetchFn: typeof fetch = async (input) =>
+      String(input).includes('runHuntingQuery')
+        ? new Response(JSON.stringify(devices(5)))
+        : new Response(JSON.stringify({ error: { code: 'UnknownError', message: wrapped } }), { status: 401 });
+    const graph = createGraphClient(async () => 'graph-token', { fetchFn, sleep: async () => {} });
+    await expect(checkReadiness(graph)).resolves.toEqual({
+      status: 'access-needed',
+      advancedHunting: 'allowed',
+      intune: 'refused',
+      details: ['Intune: An error has occurred.'],
+    });
+  });
+
+  it('reports a rejected Intune token as failed, not as a missing role', async () => {
+    await expect(
+      checkReadiness(
+        fakeGraph({ hunting: devices(5), intune: new GraphError(401, 'InvalidAuthenticationToken', 'Access token has expired.') }),
+      ),
+    ).resolves.toEqual({ status: 'failed', message: 'Intune: Access token has expired.' });
   });
 
   it('names both when both are refused', async () => {
