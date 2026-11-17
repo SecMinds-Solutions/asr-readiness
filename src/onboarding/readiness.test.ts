@@ -1,6 +1,6 @@
 import { createGraphClient, GraphError, type GraphClient } from '../graph/client';
 import { HUNTING_CHECK_QUERY } from '../analysis/queries';
-import { checkReadiness } from './readiness';
+import { checkReadiness, createReadinessCheck } from './readiness';
 
 type Answer<T> = T | GraphError | Error;
 
@@ -145,4 +145,34 @@ describe('checkReadiness', () => {
       });
     },
   );
+});
+
+describe('createReadinessCheck', () => {
+  it('uses the cached Graph token for the first check', async () => {
+    const refresh = vi.fn(async () => {});
+    const check = createReadinessCheck(fakeGraph({ hunting: devices(2), intune: policies }), refresh);
+    await expect(check({ freshToken: false })).resolves.toEqual({ status: 'ready', devices: 2 });
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('gets a new Graph token before checking again, so newly assigned roles count', async () => {
+    const order: string[] = [];
+    const graph = fakeGraph({ hunting: devices(2), intune: policies });
+    vi.mocked(graph.post).mockImplementation(async <T,>() => {
+      order.push('graph');
+      return devices(2) as T;
+    });
+    const check = createReadinessCheck(graph, async () => {
+      order.push('refresh');
+    });
+    await check({ freshToken: true });
+    expect(order).toEqual(['refresh', 'graph']);
+  });
+
+  it('reports a failed token refresh as an error of the check', async () => {
+    const check = createReadinessCheck(fakeGraph({ hunting: devices(2), intune: policies }), async () => {
+      throw new Error('network');
+    });
+    await expect(check({ freshToken: true })).rejects.toThrow('network');
+  });
 });

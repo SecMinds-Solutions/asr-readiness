@@ -95,3 +95,17 @@ export async function checkReadiness(graph: GraphClient): Promise<Readiness> {
     details,
   };
 }
+
+/**
+ * The onboarding check as the UI runs it. A check the User asks for again (after an admin assigned
+ * a role) first gets a new Graph token: the cached one carries the Microsoft Entra roles from before.
+ * Intune and Defender roles are evaluated by those services and do not depend on the token.
+ */
+export type ReadinessCheck = (options: { freshToken: boolean }) => Promise<Readiness>;
+
+export function createReadinessCheck(graph: GraphClient, refreshGraphToken: () => Promise<void>): ReadinessCheck {
+  return async ({ freshToken }) => {
+    if (freshToken) await refreshGraphToken();
+    return checkReadiness(graph);
+  };
+}

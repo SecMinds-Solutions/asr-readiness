@@ -37,3 +37,4 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - The onboarding check said "Your Tenant could not be checked" when Intune refused to read its policies, because Intune does not always answer a refusal with HTTP 403. It now says access is needed, names the Intune role to assign and shows Intune's own message instead of its raw error.
+- "Check again" and "Try again" in the onboarding check first get a new Microsoft Graph token, so a Microsoft Entra role (such as Security Reader) assigned after sign-in counts without signing out and in again. Roles assigned in Intune or the Microsoft Defender portal do not depend on the token; Microsoft can take a while to apply them.

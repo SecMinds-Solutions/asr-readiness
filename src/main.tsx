@@ -6,7 +6,7 @@ import { adminConsentUrl, readAdminConsentResult } from './auth/consent';
 import { createAuthClient } from './auth/msalAuthClient';
 import { applyTheme } from './theme';
 import { createGraphClient } from './graph/client';
-import { checkReadiness } from './onboarding/readiness';
+import { createReadinessCheck } from './onboarding/readiness';
 import { createUserRecordClient } from './user-record/client';
 
 applyTheme(document.documentElement, window.matchMedia('(prefers-color-scheme: dark)'));
@@ -26,7 +26,7 @@ function signInSetup(config: AuthConfig): SignInSetup {
     client,
     adminConsentUrl: adminConsentUrl(config),
     userRecord: createUserRecordClient(() => client.userRecordToken()),
-    checkReadiness: () => checkReadiness(graph),
+    checkReadiness: createReadinessCheck(graph, () => client.refreshGraphToken()),
   };
 }
 

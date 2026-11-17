@@ -44,6 +44,11 @@ export interface AuthClient {
   userRecordToken(): Promise<string>;
   /** An access token for Microsoft Graph, to run advanced hunting and read Intune policies. */
   graphToken(): Promise<string>;
+  /**
+   * Replaces the cached Microsoft Graph token with a new one. A token carries the User's Microsoft
+   * Entra roles from when it was issued, so after a role is assigned the cached one is out of date.
+   */
+  refreshGraphToken(): Promise<void>;
 }
 
 /** The part of MSAL's PublicClientApplication the auth client uses. */
@@ -97,12 +102,12 @@ export function createMsalAuthClient(msal: MsalApp, apiScope: string): AuthClien
   }
 
   /** Tokens are issued for one resource at a time: the app's own API, or Microsoft Graph. */
-  async function accessToken(scopes: string[]): Promise<string> {
+  async function accessToken(scopes: string[], forceRefresh = false): Promise<string> {
     const account = msal.getActiveAccount();
     if (!account) throw new Error('Nobody is signed in.');
     const request = { scopes, account };
     try {
-      return (await msal.acquireTokenSilent(request)).accessToken;
+      return (await msal.acquireTokenSilent(forceRefresh ? { ...request, forceRefresh } : request)).accessToken;
     } catch (error) {
       if (!(error instanceof InteractionRequiredAuthError)) throw error;
       await msal.acquireTokenRedirect(request);
@@ -120,5 +125,9 @@ export function createMsalAuthClient(msal: MsalApp, apiScope: string): AuthClien
     signOut: () => msal.logoutRedirect({ account: msal.getActiveAccount() }),
     userRecordToken: () => accessToken([apiScope]),
     graphToken: () => accessToken([...GRAPH_SCOPES]),
+    // MSAL caches the new token, so the next graphToken() returns it.
+    refreshGraphToken: async () => {
+      await accessToken([...GRAPH_SCOPES], true);
+    },
   };
 }

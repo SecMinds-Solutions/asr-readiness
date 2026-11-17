@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { App, type SignInSetup } from './App';
 import type { AuthClient } from './auth/msalAuthClient';
 import type { SignedInUser } from './auth/user';
-import type { Readiness } from './onboarding/readiness';
+import type { Readiness, ReadinessCheck } from './onboarding/readiness';
 import type { ContactConsent, UserRecordClient } from './user-record/client';
 
 const ada: SignedInUser = {
@@ -19,6 +19,7 @@ function fakeClient(start: () => Promise<SignedInUser | null>): AuthClient {
     signOut: vi.fn(async () => {}),
     userRecordToken: vi.fn(async () => 'api-token'),
     graphToken: vi.fn(async () => 'graph-token'),
+    refreshGraphToken: vi.fn(async () => {}),
   };
 }
 
@@ -34,7 +35,7 @@ function fakeUserRecord(stored: ContactConsent | null = storedConsent): UserReco
 function setup(
   client: AuthClient,
   userRecord: UserRecordClient = fakeUserRecord(),
-  checkReadiness: () => Promise<Readiness> = async () => ({ status: 'ready', devices: 12 }),
+  checkReadiness: ReadinessCheck = async () => ({ status: 'ready', devices: 12 }),
 ): SignInSetup {
   return { client, adminConsentUrl: consentUrl, userRecord, checkReadiness: vi.fn(checkReadiness) };
 }
@@ -274,6 +275,8 @@ describe('App: onboarding check', () => {
     const signIn = renderWith(async () => ({ status: 'access-needed', advancedHunting: 'allowed', intune: 'refused', details: [] }));
     fireEvent.click(await screen.findByRole('button', { name: 'Check again' }));
     await waitFor(() => expect(signIn.checkReadiness).toHaveBeenCalledTimes(2));
+    expect(signIn.checkReadiness).toHaveBeenNthCalledWith(1, { freshToken: false });
+    expect(signIn.checkReadiness).toHaveBeenNthCalledWith(2, { freshToken: true });
   });
 
   it('shows a failed check with the reason and lets the User try again', async () => {
@@ -282,6 +285,7 @@ describe('App: onboarding check', () => {
     expect(alert).toHaveTextContent('Advanced hunting: Service unavailable.');
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(signIn.checkReadiness).toHaveBeenCalledTimes(2));
+    expect(signIn.checkReadiness).toHaveBeenLastCalledWith({ freshToken: true });
   });
 
   it('shows an unexpected error of the check as failed', async () => {

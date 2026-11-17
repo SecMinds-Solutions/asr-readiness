@@ -157,6 +157,29 @@ describe('createMsalAuthClient', () => {
     expect(GRAPH_SCOPES.every((scope) => SIGN_IN_SCOPES.includes(scope))).toBe(true);
   });
 
+  it('replaces the cached Microsoft Graph token with a new one, for roles assigned since sign-in', async () => {
+    const msal = fakeMsal({ getAllAccounts: vi.fn<MsalApp['getAllAccounts']>(() => [account('Ada')]) });
+    const client = createMsalAuthClient(msal, apiScope);
+    await client.start();
+    await client.refreshGraphToken();
+    expect(msal.acquireTokenSilent).toHaveBeenCalledWith({ scopes: [...GRAPH_SCOPES], account: msal.active, forceRefresh: true });
+  });
+
+  it('asks the User to sign in again when the Graph token cannot be replaced silently', async () => {
+    const msal = fakeMsal({
+      getAllAccounts: vi.fn<MsalApp['getAllAccounts']>(() => [account('Ada')]),
+      acquireTokenSilent: vi.fn<MsalApp['acquireTokenSilent']>(async () =>
+        Promise.reject(new InteractionRequiredAuthError('interaction_required', 'Sign in again.')),
+      ),
+    });
+    const client = createMsalAuthClient(msal, apiScope);
+    await client.start();
+    void client.refreshGraphToken();
+    await vi.waitFor(() =>
+      expect(msal.acquireTokenRedirect).toHaveBeenCalledWith({ scopes: [...GRAPH_SCOPES], account: msal.active }),
+    );
+  });
+
   it('refuses to get a token when nobody is signed in', async () => {
     await expect(createMsalAuthClient(fakeMsal(), apiScope).userRecordToken()).rejects.toThrow(/signed in/);
   });

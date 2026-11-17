@@ -13,7 +13,7 @@ import {
   NotSupportedCard,
   ReadyCard,
 } from './components/Onboarding';
-import type { Readiness } from './onboarding/readiness';
+import type { ReadinessCheck } from './onboarding/readiness';
 import { useReadiness } from './onboarding/useReadiness';
 import {
   AdminConsentResultAlert,
@@ -36,7 +36,7 @@ export interface SignInSetup {
   adminConsentUrl: string;
   userRecord: UserRecordClient;
   /** Whether the Tenant is a Supported tenant and the User has the roles an Analysis needs. */
-  checkReadiness: () => Promise<Readiness>;
+  checkReadiness: ReadinessCheck;
 }
 
 export function App({
@@ -94,7 +94,7 @@ function SignedIn({
 }: {
   user: SignedInUser;
   userRecord: UserRecordClient;
-  checkReadiness: () => Promise<Readiness>;
+  checkReadiness: ReadinessCheck;
 }) {
   const { state, retry, saveContactConsent } = useUserRecord(userRecord);
   switch (state.status) {
@@ -115,7 +115,7 @@ function SignedIn({
 }
 
 /** After the Contact consent choice: is this a Supported tenant, and may this User run an Analysis? */
-function OnboardingCheck({ checkReadiness }: { checkReadiness: () => Promise<Readiness> }) {
+function OnboardingCheck({ checkReadiness }: { checkReadiness: ReadinessCheck }) {
   const { state, checkAgain } = useReadiness(checkReadiness);
   switch (state.status) {
     case 'checking':
