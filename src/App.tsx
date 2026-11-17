@@ -173,7 +173,7 @@ function RuleOverviewSection({ load }: { load: () => Promise<RuleOverview> }) {
     case 'failed':
       return <RuleOverviewFailedAlert message={state.message} onRetry={reload} />;
     case 'loaded':
-      return <RuleOverviewView overview={state.value} />;
+      return <RuleOverviewView overview={state.value} onRetry={reload} />;
   }
 }
 

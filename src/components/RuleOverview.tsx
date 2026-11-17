@@ -56,15 +56,37 @@ function RuleModeCell({ state }: { state: RuleState }) {
   }
 }
 
+/** Whether the Coverage query failed, as opposed to no device reporting its Rule modes (null). */
+const coverageFailed = (result: RuleOverview['coverage']): result is { failed: string } =>
+  result !== null && 'failed' in result;
+
 const devicesText = (count: number, total: number) => `${count} of ${total} ${total === 1 ? 'device' : 'devices'}`;
 
 /** Every ASR rule with its Rule mode from Intune, and its Coverage when there is one. */
-export function RuleOverviewView({ overview: { modes, coverage } }: { overview: RuleOverview }) {
+export function RuleOverviewView({
+  overview: { modes, coverage: result },
+  onRetry,
+}: {
+  overview: RuleOverview;
+  onRetry: () => void;
+}) {
+  const coverage = coverageFailed(result) ? null : result;
   const conflicts = modes.rules.filter((row) => row.state.kind === 'conflict').length;
   const rows = modes.rules.map(({ rule, state }) => ({ rule, state }));
   return (
     <Card title="ASR rules">
-      {coverage === null && (
+      {coverageFailed(result) && (
+        <Alert tone="warning" title="Coverage could not be read">
+          <p className="app-text">
+            The Rule modes from Intune are shown, but the Rule modes devices report could not be read from advanced hunting.
+          </p>
+          <p className="app-text code app-break">{result.failed}</p>
+          <Button variant="secondary" size="sm" onClick={onRetry}>
+            Try again
+          </Button>
+        </Alert>
+      )}
+      {result === null && (
         <Alert tone="info" title="Coverage not available">
           Coverage is not available: no device reports its ASR Rule modes to advanced hunting yet.
         </Alert>

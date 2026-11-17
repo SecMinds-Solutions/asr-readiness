@@ -5,11 +5,9 @@ import { readAuthConfig, type AuthConfig } from './auth/config';
 import { adminConsentUrl, readAdminConsentResult } from './auth/consent';
 import { createAuthClient } from './auth/msalAuthClient';
 import { applyTheme } from './theme';
-import { ruleModesFromPolicies } from './analysis/intuneRuleModes';
 import { fetchAuditEvents } from './graph/auditEvents';
 import { createGraphClient } from './graph/client';
-import { fetchCoverage } from './graph/coverage';
-import { fetchIntunePolicies } from './graph/intunePolicies';
+import { fetchRuleOverview } from './graph/ruleOverview';
 import { createReadinessCheck } from './onboarding/readiness';
 import { createUserRecordClient } from './user-record/client';
 
@@ -31,10 +29,7 @@ function signInSetup(config: AuthConfig): SignInSetup {
     adminConsentUrl: adminConsentUrl(config),
     userRecord: createUserRecordClient(() => client.userRecordToken()),
     checkReadiness: createReadinessCheck(graph, () => client.refreshGraphToken()),
-    loadRuleOverview: async () => {
-      const [policies, coverage] = await Promise.all([fetchIntunePolicies(graph), fetchCoverage(graph)]);
-      return { modes: ruleModesFromPolicies(policies), coverage };
-    },
+    loadRuleOverview: () => fetchRuleOverview(graph),
     loadAuditEvents: () => fetchAuditEvents(graph),
   };
 }

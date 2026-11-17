@@ -13,6 +13,9 @@ export interface Coverage {
 /** Every ASR rule with its Rule mode and Coverage. */
 export interface RuleOverview {
   modes: RuleModes;
-  /** Null while Coverage cannot be read; the Rule modes are shown without it. */
-  coverage: Coverage | null;
+  /**
+   * Null when no device reports its Rule modes yet; `failed` with the reason when the Coverage
+   * query failed. Either way the Rule modes are shown without it.
+   */
+  coverage: Coverage | null | { failed: string };
 }
