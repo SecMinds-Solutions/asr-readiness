@@ -7,7 +7,7 @@ Sign in with your Entra account, and ASR Readiness reads your tenant's ASR audit
 and Intune ASR policies, gives every rule a verdict, and suggests exclusions and a
 ready-made Intune policy that you review and deploy yourself.
 
-> **Status:** in development. The app skeleton is live; sign-in and the analysis follow.
+> **Status:** in development. Sign-in works; the analysis follows.
 
 ## How it works
 
@@ -24,6 +24,10 @@ ready-made Intune policy that you review and deploy yourself.
 - **Read-only, delegated permissions only:** `ThreatHunting.Read.All` and
   `DeviceManagementConfiguration.Read.All`, used only while you are signed in and limited
   to what your own roles allow.
+- **Sign-in with Microsoft:** you sign in on Microsoft's own sign-in page. Your sign-in tokens
+  are kept in the browser tab's session storage and are gone when you close the tab. This
+  includes a refresh token (`offline_access`) that renews them while the tab is open. The app
+  has no client secret or certificate.
 - **Stored about you:** your tenant ID, username, first and last name, email address, and
   whether you agreed to hear from SecMinds about other products.
 - **Hosted on Azure.** The web page is served from Azure's global network; the backend that
@@ -52,6 +56,9 @@ MSPs can analyse customer tenants through GDAP.
 npm ci
 npm run dev
 ```
+
+To sign in locally, copy `.env.example` to `.env.local` and set `VITE_ENTRA_CLIENT_ID` to the
+client ID of an app registration of your own, as described in `.env.example`.
 
 Checks: `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`.
 

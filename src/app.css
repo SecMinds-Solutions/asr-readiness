@@ -32,3 +32,34 @@ body,
   margin: 0 0 var(--space-4);
   max-width: 60ch;
 }
+
+.app-text {
+  margin: 0 0 var(--space-2);
+  color: var(--ink);
+}
+
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.app-details {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.app-details dt {
+  font-weight: 700;
+}
+
+.app-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-break {
+  overflow-wrap: anywhere;
+}
