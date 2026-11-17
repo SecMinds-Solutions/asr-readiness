@@ -117,6 +117,16 @@ describe('createGraphClient', () => {
     await expect(client.get('/x')).rejects.toMatchObject({ name: 'TimeoutError' });
   });
 
+  it('lets one request wait longer than the default timeout', async () => {
+    const hanging = vi.fn<typeof fetch>(
+      (_, init) => new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))),
+    );
+    const client = createGraphClient(async () => 't', { fetchFn: hanging, sleep: async () => {}, timeoutMs: 20 });
+    const started = Date.now();
+    await expect(client.post('/x', {}, { timeoutMs: 120 })).rejects.toMatchObject({ name: 'TimeoutError' });
+    expect(Date.now() - started).toBeGreaterThanOrEqual(100);
+  });
+
   it('follows @odata.nextLink and returns every page', async () => {
     const { client, fetchFn } = setup(
       json(200, { value: [1, 2], '@odata.nextLink': 'https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?$skiptoken=abc' }),

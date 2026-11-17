@@ -1,6 +1,8 @@
+import { numberColumn } from '../analysis/huntingRows';
 import { HUNTING_CHECK_QUERY } from '../analysis/queries';
 import { errorMessage } from '../errorMessage';
 import { GraphError, type GraphClient } from '../graph/client';
+import { runHuntingQuery } from '../graph/hunting';
 
 /**
  * Whether an Analysis can run for the signed-in User in this Tenant (ADR-0001).
@@ -40,28 +42,16 @@ const isRefused = (error: unknown) => error instanceof GraphError && error.statu
 const isMissingDeviceTable = (error: unknown) =>
   error instanceof GraphError && error.status === 400 && error.message.includes('DeviceInfo');
 
-const unexpectedAnswer = () => new Error('Advanced hunting sent an unexpected answer.');
-
-/**
- * The device count from the hunting result. Microsoft's examples differ in the casing of column
- * names, so the column is matched case-insensitively.
- */
-function deviceCount(result: unknown): number {
-  if (typeof result !== 'object' || result === null) throw unexpectedAnswer();
-  const rows: unknown = (result as { results?: unknown }).results;
-  if (!Array.isArray(rows)) throw unexpectedAnswer();
-  const row: unknown = rows[0];
-  if (row === undefined) return 0;
-  if (typeof row !== 'object' || row === null) throw unexpectedAnswer();
-  const value = Object.entries(row).find(([key]) => key.toLowerCase() === 'devices')?.[1];
-  if (typeof value !== 'number') throw unexpectedAnswer();
-  return value;
+/** The device count from the hunting result rows; no row means no devices. */
+function deviceCount(rows: unknown[]): number {
+  const row = rows[0];
+  return row === undefined ? 0 : numberColumn(row, 'Devices');
 }
 
 /** Runs one small advanced hunting query and one light Intune read, in parallel. */
 export async function checkReadiness(graph: GraphClient): Promise<Readiness> {
   const [hunting, intune] = await Promise.all([
-    settle(graph.post<unknown>('/security/runHuntingQuery', { Query: HUNTING_CHECK_QUERY })),
+    settle(runHuntingQuery(graph, HUNTING_CHECK_QUERY)),
     settle(graph.get<unknown>(INTUNE_CHECK_PATH, { version: 'beta' })),
   ]);
 

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { App, type SignInSetup } from './App';
 import type { AuthClient } from './auth/msalAuthClient';
 import type { SignedInUser } from './auth/user';
+import { auditEventsFromRows, type AuditEvents } from './analysis/auditEvents';
 import { ruleModesFromPolicies } from './analysis/intuneRuleModes';
 import type { RuleOverview } from './analysis/ruleOverview';
 import type { Readiness, ReadinessCheck } from './onboarding/readiness';
@@ -44,6 +45,7 @@ function setup(
   userRecord: UserRecordClient = fakeUserRecord(),
   checkReadiness: ReadinessCheck = async () => ({ status: 'ready', devices: 12 }),
   loadRuleOverview: () => Promise<RuleOverview> = async () => emptyOverview,
+  loadAuditEvents: () => Promise<AuditEvents> = async () => auditEventsFromRows([], []),
 ): SignInSetup {
   return {
     client,
@@ -51,6 +53,7 @@ function setup(
     userRecord,
     checkReadiness: vi.fn(checkReadiness),
     loadRuleOverview: vi.fn(loadRuleOverview),
+    loadAuditEvents: vi.fn(loadAuditEvents),
   };
 }
 
@@ -338,5 +341,40 @@ describe('App: ASR rules', () => {
     expect(alert).toHaveTextContent('HTTP 503');
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(signIn.loadRuleOverview).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('App: Audit events', () => {
+  const signedIn = () => fakeClient(async () => ada);
+
+  it('reads the Audit events once the Tenant is ready, and shows them', async () => {
+    const signIn = setup(signedIn());
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    expect(await screen.findByRole('heading', { name: 'Audit events' })).toBeInTheDocument();
+    expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
+    expect(screen.getByText('No Audit events in the last 30 days')).toBeInTheDocument();
+  });
+
+  it('does not read the Audit events when the Tenant is not ready', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), async () => ({ status: 'no-devices' }));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    await screen.findByRole('heading', { name: 'No devices to analyse yet' });
+    expect(signIn.loadAuditEvents).not.toHaveBeenCalled();
+  });
+
+  it('says it is counting the Audit events', async () => {
+    render(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
+    expect(await screen.findByText('Counting Audit events in advanced hunting…')).toBeInTheDocument();
+  });
+
+  it('shows why the Audit events could not be read, such as throttling, and lets the User try again', async () => {
+    const throttled = new Error('Advanced hunting is throttled: wait a few minutes and try again.');
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, async () => Promise.reject(throttled));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The Audit events could not be read');
+    expect(alert).toHaveTextContent('Advanced hunting is throttled');
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(signIn.loadAuditEvents).toHaveBeenCalledTimes(2));
   });
 });

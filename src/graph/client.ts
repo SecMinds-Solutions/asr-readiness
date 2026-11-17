@@ -23,6 +23,8 @@ export class GraphError extends Error {
 
 export interface GraphRequestOptions {
   version?: 'v1.0' | 'beta';
+  /** Overrides the client's timeout for this request. */
+  timeoutMs?: number;
 }
 
 export interface GraphClient {
@@ -99,7 +101,7 @@ export function createGraphClient(
     timeoutMs = 60_000,
   }: GraphClientOptions = {},
 ): GraphClient {
-  async function request<T>(method: 'GET' | 'POST', url: string, body: unknown): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST', url: string, body: unknown, requestTimeoutMs = timeoutMs): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       const headers = new Headers({ Authorization: `Bearer ${await accessToken()}` });
       if (body !== undefined) headers.set('Content-Type', 'application/json');
@@ -107,7 +109,7 @@ export function createGraphClient(
         method,
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(requestTimeoutMs),
       });
       if (response.ok) return (await response.json()) as T;
       if (RETRYABLE.has(response.status) && attempt < MAX_RETRIES) {
@@ -127,7 +129,7 @@ export function createGraphClient(
       if (page === MAX_PAGES) throw new Error(`Microsoft Graph returned more than ${MAX_PAGES} pages.`);
       // The token goes only to Microsoft Graph, whatever a next link says.
       if (!url.startsWith(`${GRAPH}/`)) throw new Error('Microsoft Graph sent a next link outside Microsoft Graph.');
-      const body: { value?: unknown; '@odata.nextLink'?: unknown } = await request('GET', url, undefined);
+      const body: { value?: unknown; '@odata.nextLink'?: unknown } = await request('GET', url, undefined, options?.timeoutMs);
       if (!Array.isArray(body.value)) throw new Error('Microsoft Graph sent a page without a value list.');
       items.push(...(body.value as T[]));
       url = typeof body['@odata.nextLink'] === 'string' ? body['@odata.nextLink'] : undefined;
@@ -136,8 +138,8 @@ export function createGraphClient(
   }
 
   return {
-    get: (path, options) => request('GET', urlOf(path, options), undefined),
+    get: (path, options) => request('GET', urlOf(path, options), undefined, options?.timeoutMs),
     getAll,
-    post: (path, body, options) => request('POST', urlOf(path, options), body),
+    post: (path, body, options) => request('POST', urlOf(path, options), body, options?.timeoutMs),
   };
 }

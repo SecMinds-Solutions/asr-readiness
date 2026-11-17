@@ -1,5 +1,6 @@
 import { createGraphClient, GraphError, type GraphClient } from '../graph/client';
 import { HUNTING_CHECK_QUERY } from '../analysis/queries';
+import { HUNTING_TIMEOUT_MS } from '../graph/hunting';
 import { checkReadiness, createReadinessCheck } from './readiness';
 
 type Answer<T> = T | GraphError | Error;
@@ -28,7 +29,7 @@ describe('checkReadiness', () => {
   it('reads a small aggregate from advanced hunting and one Intune policy, nothing more', async () => {
     const graph = fakeGraph({ hunting: devices(12), intune: policies });
     await checkReadiness(graph);
-    expect(graph.post).toHaveBeenCalledWith('/security/runHuntingQuery', { Query: HUNTING_CHECK_QUERY });
+    expect(graph.post).toHaveBeenCalledWith('/security/runHuntingQuery', { Query: HUNTING_CHECK_QUERY }, { timeoutMs: HUNTING_TIMEOUT_MS });
     expect(HUNTING_CHECK_QUERY).toBe('DeviceInfo | where OnboardingStatus == "Onboarded" | summarize Devices = dcount(DeviceId)');
     expect(graph.get).toHaveBeenCalledWith('/deviceManagement/configurationPolicies?$top=1&$select=id', { version: 'beta' });
   });

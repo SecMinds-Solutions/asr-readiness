@@ -6,6 +6,7 @@ import { adminConsentUrl, readAdminConsentResult } from './auth/consent';
 import { createAuthClient } from './auth/msalAuthClient';
 import { applyTheme } from './theme';
 import { ruleModesFromPolicies } from './analysis/intuneRuleModes';
+import { fetchAuditEvents } from './graph/auditEvents';
 import { createGraphClient } from './graph/client';
 import { fetchCoverage } from './graph/coverage';
 import { fetchIntunePolicies } from './graph/intunePolicies';
@@ -34,6 +35,7 @@ function signInSetup(config: AuthConfig): SignInSetup {
       const [policies, coverage] = await Promise.all([fetchIntunePolicies(graph), fetchCoverage()]);
       return { modes: ruleModesFromPolicies(policies), coverage };
     },
+    loadAuditEvents: () => fetchAuditEvents(graph),
   };
 }
 
