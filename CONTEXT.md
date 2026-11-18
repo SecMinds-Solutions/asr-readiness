@@ -92,8 +92,8 @@ The share of a Tenant's devices on which a rule is in Audit mode, shown with eve
 A Tenant licensed for Microsoft Defender for Endpoint Plan 2, which provides the advanced hunting data an Analysis needs.
 
 **User**:
-A person who signs in with an Entra account. The only data kept about a User is their Home tenant, username, first name, last name, email address and Contact consent.
+A person who signs in with an Entra account. The only data kept about a User is their Home tenant, username, first name, last name, email address and Contact consent, in their User record. A signed-in User can see their User record and delete it; once deleted, nothing about them remains.
 _Avoid_: customer, account, lead
 
 **Contact consent**:
-A User's opt-in, with its date, to hear from SecMinds about its other products. Without it, a User is only emailed about the tool itself.
+A User's opt-in, with its date, to hear from SecMinds about its other products. Without it, a User is only emailed about the tool itself. A User can withdraw it, or give it later; each choice is stored with its date.

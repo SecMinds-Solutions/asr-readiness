@@ -8,7 +8,7 @@ import { asrSettings, choice, toAllDevices } from './analysis/fixtures/intunePol
 import { ruleModesFromPolicies } from './analysis/intuneRuleModes';
 import type { RuleOverview } from './analysis/ruleOverview';
 import type { Readiness, ReadinessCheck } from './onboarding/readiness';
-import type { ContactConsent, UserRecordClient } from './user-record/client';
+import type { UserRecord, UserRecordClient } from './user-record/client';
 
 const ada: SignedInUser = {
   name: 'Ada Lovelace',
@@ -28,12 +28,25 @@ function fakeClient(start: () => Promise<SignedInUser | null>): AuthClient {
   };
 }
 
-const storedConsent: ContactConsent = { contactConsent: false, contactConsentDate: '2026-11-01T09:00:00.000Z' };
+const storedRecord: UserRecord = {
+  homeTenantId: ada.homeTenantId,
+  username: ada.username,
+  firstName: 'Ada',
+  lastName: 'Lovelace',
+  email: 'ada@contoso.com',
+  contactConsent: false,
+  contactConsentDate: '2026-11-01T09:00:00.000Z',
+};
 
-function fakeUserRecord(stored: ContactConsent | null = storedConsent): UserRecordClient {
+function fakeUserRecord(stored: UserRecord | null = storedRecord): UserRecordClient {
   return {
-    contactConsent: vi.fn(async () => stored),
-    saveContactConsent: vi.fn(async (contactConsent: boolean) => ({ contactConsent, contactConsentDate: '2026-11-17T10:00:00.000Z' })),
+    userRecord: vi.fn(async () => stored),
+    saveContactConsent: vi.fn(async (contactConsent: boolean) => ({
+      ...storedRecord,
+      contactConsent,
+      contactConsentDate: '2026-11-17T10:00:00.000Z',
+    })),
+    deleteUserRecord: vi.fn(async () => {}),
   };
 }
 
@@ -207,7 +220,7 @@ describe('App: Contact consent', () => {
 
   it('shows why the record could not be read and lets the User try again', async () => {
     const userRecord = fakeUserRecord(null);
-    vi.mocked(userRecord.contactConsent).mockRejectedValueOnce(new Error('The User record service answered HTTP 503.'));
+    vi.mocked(userRecord.userRecord).mockRejectedValueOnce(new Error('The User record service answered HTTP 503.'));
     render(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('HTTP 503');
@@ -225,6 +238,103 @@ describe('App: Contact consent', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 500');
     expect(screen.getByRole('checkbox', { name: /SecMinds may email me/i })).toBeChecked();
     expect(screen.queryByRole('heading', { name: 'Signed in' })).not.toBeInTheDocument();
+  });
+});
+
+describe('App: privacy notice and the User record', () => {
+  const signedIn = () => fakeClient(async () => ada);
+  const openPrivacyNotice = () => {
+    fireEvent.click(within(screen.getByRole('navigation')).getByRole('link', { name: 'Privacy notice' }));
+    fireEvent(window, new HashChangeEvent('hashchange'));
+  };
+
+  afterEach(() => {
+    window.location.hash = '';
+  });
+
+  it('links to the privacy notice from every page, also when sign-in is not configured', async () => {
+    render(<App signIn={null} adminConsentResult={null} />);
+    expect(within(screen.getByRole('navigation')).getByRole('link', { name: 'Privacy notice' })).toHaveAttribute('href', '#privacy');
+    openPrivacyNotice();
+    expect(await screen.findByRole('heading', { name: 'Privacy notice' })).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  it('describes the data, the purpose, EU hosting and the rights, and asks a signed-out User to sign in for their record', async () => {
+    window.location.hash = '#privacy';
+    render(<App signIn={setup(fakeClient(async () => null))} adminConsentResult={null} />);
+    expect(await screen.findByRole('heading', { name: 'Privacy notice' })).toBeInTheDocument();
+    expect(screen.getByText(/West Europe region, in the European Union/)).toBeInTheDocument();
+    expect(screen.getByText(/withdraw your Contact consent/)).toBeInTheDocument();
+    expect(screen.getByText(/removed from storage at once/)).toBeInTheDocument();
+    expect(screen.getByText('Sign in to see, change or delete your User record.')).toBeInTheDocument();
+  });
+
+  it('shows a signed-in User their stored User record on the privacy notice', async () => {
+    render(<App signIn={setup(signedIn())} adminConsentResult={null} />);
+    await screen.findByRole('heading', { name: 'Signed in' });
+    openPrivacyNotice();
+    const card = (await screen.findByRole('heading', { name: 'Your User record' })).closest('article') as HTMLElement;
+    for (const value of [ada.homeTenantId, 'ada@contoso.com', 'Ada', 'Lovelace', 'Not given']) {
+      expect(within(card).getAllByText(value).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('withdraws Contact consent and shows the new choice', async () => {
+    const userRecord = fakeUserRecord({ ...storedRecord, contactConsent: true });
+    window.location.hash = '#privacy';
+    render(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw Contact consent' }));
+    expect(userRecord.saveContactConsent).toHaveBeenCalledWith(false);
+    expect(await screen.findByText('Not given')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Give Contact consent' })).toBeInTheDocument();
+  });
+
+  it('keeps the record on screen and says why when withdrawing fails', async () => {
+    const userRecord = fakeUserRecord({ ...storedRecord, contactConsent: true });
+    vi.mocked(userRecord.saveContactConsent).mockRejectedValueOnce(new Error('The User record service answered HTTP 500.'));
+    window.location.hash = '#privacy';
+    render(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw Contact consent' }));
+    expect(await alertWith('Not changed')).toHaveTextContent('HTTP 500');
+    expect(screen.getByText('Given')).toBeInTheDocument();
+  });
+
+  it('deletes the User record only after confirmation, then offers only sign-out', async () => {
+    const client = signedIn();
+    const signIn = setup(client);
+    window.location.hash = '#privacy';
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my User record' }));
+    expect(signIn.userRecord.deleteUserRecord).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+    expect(signIn.userRecord.deleteUserRecord).toHaveBeenCalledOnce();
+    const done = (await screen.findByText('Your User record is deleted')).closest('[role="status"]') as HTMLElement;
+    expect(done).toHaveTextContent('Nothing about you remains in storage');
+    expect(screen.queryByRole('heading', { name: 'Your User record' })).toBeNull();
+    window.location.hash = '';
+    fireEvent(window, new HashChangeEvent('hashchange'));
+    expect(screen.queryByRole('heading', { name: 'Signed in' })).toBeNull();
+    expect(signIn.checkReadiness).not.toHaveBeenCalled();
+    fireEvent.click(within(done).getByRole('button', { name: 'Sign out' }));
+    expect(client.signOut).toHaveBeenCalled();
+  });
+
+  it('keeps the record and says why when deleting fails', async () => {
+    const userRecord = fakeUserRecord();
+    vi.mocked(userRecord.deleteUserRecord).mockRejectedValueOnce(new Error('The User record service answered HTTP 503.'));
+    window.location.hash = '#privacy';
+    render(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my User record' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+    expect(await alertWith('Not changed')).toHaveTextContent('could not be deleted');
+    expect(screen.getByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+  });
+
+  it('says nothing is stored yet for a signed-in User who has not made the Contact consent choice', async () => {
+    window.location.hash = '#privacy';
+    render(<App signIn={setup(signedIn(), fakeUserRecord(null))} adminConsentResult={null} />);
+    expect(await screen.findByText(/Nothing is stored about you yet/)).toBeInTheDocument();
   });
 });
 

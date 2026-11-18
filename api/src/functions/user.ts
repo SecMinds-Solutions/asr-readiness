@@ -31,8 +31,8 @@ async function user(request: HttpRequest, context: InvocationContext): Promise<H
   } catch (error) {
     // The error comes from configuration or Table Storage, never from the User's data.
     context.error('User record request failed:', error instanceof Error ? error.message : error);
-    return { status: 500, jsonBody: { error: 'The User record could not be read or stored.' } };
+    return { status: 500, jsonBody: { error: 'The User record could not be read, stored or deleted.' } };
   }
 }
 
-app.http('user', { route: 'user', methods: ['GET', 'PUT'], authLevel: 'anonymous', handler: user });
+app.http('user', { route: 'user', methods: ['GET', 'PUT', 'DELETE'], authLevel: 'anonymous', handler: user });

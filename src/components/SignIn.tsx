@@ -1,6 +1,7 @@
 import { SecMinds } from '../design-system';
 import type { AdminConsentResult } from '../auth/consent';
 import type { SignedInUser } from '../auth/user';
+import { PRIVACY_HREF } from '../route';
 
 const { Alert, Button, Card, Spinner, TextLink } = SecMinds;
 
@@ -54,6 +55,9 @@ export function SignedInCard({ user }: { user: SignedInUser }) {
         <dt>Home tenant</dt>
         <dd className="code">{user.homeTenantId}</dd>
       </dl>
+      <p className="app-text app-hint">
+        See, change or delete what is stored about you in the <TextLink href={PRIVACY_HREF}>privacy notice</TextLink>.
+      </p>
     </Card>
   );
 }

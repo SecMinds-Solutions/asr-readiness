@@ -1,9 +1,11 @@
-import { identityFromClaims, parseContactConsentChoice, type ContactConsent, type UserIdentity, type UserRecord } from './userRecord.js';
+import { identityFromClaims, parseContactConsentChoice, type UserIdentity, type UserRecord } from './userRecord.js';
 
 /** Reads and writes User records. */
 export interface UserStore {
   get(homeTenantId: string, username: string): Promise<UserRecord | null>;
   save(record: UserRecord): Promise<void>;
+  /** Deletes the record; deleting a record that does not exist is not an error. */
+  delete(homeTenantId: string, username: string): Promise<void>;
 }
 
 export interface UserRequest {
@@ -14,7 +16,7 @@ export interface UserRequest {
 
 export interface UserResponse {
   status: number;
-  jsonBody?: ContactConsent | { error: string };
+  jsonBody?: UserRecord | { error: string };
   headers?: Record<string, string>;
 }
 
@@ -36,17 +38,18 @@ function bearerToken(authorization: string | null): string | null {
   return match?.[1] ?? null;
 }
 
-function consentOf({ contactConsent, contactConsentDate }: UserRecord): UserResponse {
-  return { status: 200, jsonBody: { contactConsent, contactConsentDate } };
-}
+const METHODS = ['GET', 'PUT', 'DELETE'];
 
 /**
- * GET returns the signed-in User's Contact consent, or 404 for a User without a record.
- * PUT stores their record: every field from the validated token, plus the Contact consent choice,
- * which is the only thing the request body may contain. Storage errors are passed on.
+ * Every request acts on the record of the User the validated token names, never on another.
+ * GET returns the signed-in User's stored User record, or 404 for a User without a record.
+ * PUT stores their record: every field from the validated token, plus the Contact consent choice
+ * with the date of this request, which is the only thing the request body may contain; a User
+ * withdraws their Contact consent by storing false. DELETE removes their record and answers 204,
+ * also when there was none. Storage errors are passed on.
  */
 export async function handleUserRequest(request: UserRequest, { store, now, verify }: UserHandlerDeps): Promise<UserResponse> {
-  if (request.method !== 'GET' && request.method !== 'PUT') return { status: 405, headers: { Allow: 'GET, PUT' } };
+  if (!METHODS.includes(request.method)) return { status: 405, headers: { Allow: METHODS.join(', ') } };
 
   const token = bearerToken(request.authorization);
   if (!token) return unauthorized;
@@ -66,7 +69,12 @@ export async function handleUserRequest(request: UserRequest, { store, now, veri
 
   if (request.method === 'GET') {
     const stored = await store.get(identity.homeTenantId, identity.username);
-    return stored ? consentOf(stored) : { status: 404, jsonBody: { error: 'No User record yet.' } };
+    return stored ? { status: 200, jsonBody: stored } : { status: 404, jsonBody: { error: 'No User record yet.' } };
+  }
+
+  if (request.method === 'DELETE') {
+    await store.delete(identity.homeTenantId, identity.username);
+    return { status: 204 };
   }
 
   let body: unknown;
@@ -80,5 +88,5 @@ export async function handleUserRequest(request: UserRequest, { store, now, veri
 
   const record: UserRecord = { ...identity, contactConsent, contactConsentDate: now().toISOString() };
   await store.save(record);
-  return consentOf(record);
+  return { status: 200, jsonBody: record };
 }

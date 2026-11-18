@@ -1,50 +1,68 @@
-/** The signed-in User's Contact consent choice and when they made it, as the API returns it. */
-export interface ContactConsent {
+/** The signed-in User's stored User record, as the API returns it to them. */
+export interface UserRecord {
+  homeTenantId: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   contactConsent: boolean;
+  /** When the User made their latest Contact consent choice, as an ISO 8601 date-time in UTC. */
   contactConsentDate: string;
 }
 
-/** Reads and stores the signed-in User's record through the app's own API. */
+/** Reads, stores and deletes the signed-in User's record through the app's own API. */
 export interface UserRecordClient {
-  /** The stored Contact consent, or null when the User has no record yet. */
-  contactConsent(): Promise<ContactConsent | null>;
-  saveContactConsent(contactConsent: boolean): Promise<ContactConsent>;
+  /** The stored User record, or null when the User has no record yet. */
+  userRecord(): Promise<UserRecord | null>;
+  /** Stores a Contact consent choice, also to withdraw it; the API dates it. */
+  saveContactConsent(contactConsent: boolean): Promise<UserRecord>;
+  /** Deletes the User record; resolves only once the API confirms it is gone. */
+  deleteUserRecord(): Promise<void>;
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-function isContactConsent(value: unknown): value is ContactConsent {
+const TEXT_FIELDS = ['homeTenantId', 'username', 'firstName', 'lastName', 'email', 'contactConsentDate'] as const;
+
+function isUserRecord(value: unknown): value is UserRecord {
   if (typeof value !== 'object' || value === null) return false;
-  const { contactConsent, contactConsentDate } = value as Record<string, unknown>;
-  return typeof contactConsent === 'boolean' && typeof contactConsentDate === 'string';
+  const fields = value as Record<string, unknown>;
+  return typeof fields['contactConsent'] === 'boolean' && TEXT_FIELDS.every((field) => typeof fields[field] === 'string');
 }
 
 /**
- * Talks to `/api/user`. The API takes every User record field from the access token; the only
- * thing this client sends is the Contact consent choice.
+ * Talks to `/api/user`. The API takes every User record field from the access token and acts only
+ * on the record of the User it names; the only thing this client sends is the Contact consent choice.
  */
 export function createUserRecordClient(
   accessToken: () => Promise<string>,
   fetchFn: typeof fetch = (...args) => fetch(...args),
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): UserRecordClient {
-  async function requestUserRecord(method: 'GET' | 'PUT', body?: string): Promise<ContactConsent | null> {
+  async function send(method: 'GET' | 'PUT' | 'DELETE', body?: string): Promise<Response> {
     const headers = new Headers({ Authorization: `Bearer ${await accessToken()}` });
     if (body) headers.set('Content-Type', 'application/json');
-    const response = await fetchFn('/api/user', { method, headers, body, signal: AbortSignal.timeout(timeoutMs) });
-    if (method === 'GET' && response.status === 404) return null;
-    if (!response.ok) throw new Error(`The User record service answered HTTP ${response.status}.`);
+    return fetchFn('/api/user', { method, headers, body, signal: AbortSignal.timeout(timeoutMs) });
+  }
+
+  const failed = (response: Response) => new Error(`The User record service answered HTTP ${response.status}.`);
+
+  async function recordOf(response: Response): Promise<UserRecord> {
+    if (!response.ok) throw failed(response);
     const json: unknown = await response.json();
-    if (!isContactConsent(json)) throw new Error('The User record service sent an unexpected answer.');
+    if (!isUserRecord(json)) throw new Error('The User record service sent an unexpected answer.');
     return json;
   }
 
   return {
-    contactConsent: () => requestUserRecord('GET'),
-    saveContactConsent: async (contactConsent) => {
-      const saved = await requestUserRecord('PUT', JSON.stringify({ contactConsent }));
-      if (!saved) throw new Error('The User record service sent no Contact consent.');
-      return saved;
+    userRecord: async () => {
+      const response = await send('GET');
+      return response.status === 404 ? null : recordOf(response);
+    },
+    saveContactConsent: async (contactConsent) => recordOf(await send('PUT', JSON.stringify({ contactConsent }))),
+    deleteUserRecord: async () => {
+      const response = await send('DELETE');
+      if (response.status !== 204) throw failed(response);
     },
   };
 }

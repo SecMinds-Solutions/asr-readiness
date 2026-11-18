@@ -33,7 +33,9 @@ ready-made Intune policy that you review and deploy yourself.
   name, email address, and whether you agreed to hear from SecMinds about other products,
   with the date of that choice. All of it except the choice comes from your Microsoft
   sign-in. You make the choice after your first sign-in, and the box is unticked by default.
-  The record is kept in Azure Table Storage in West Europe.
+  The record is kept in Azure Table Storage in West Europe until you delete it. Signed in,
+  you can see your record, withdraw your Contact consent and delete the record yourself, from
+  the app's privacy notice; see [`PRIVACY.md`](PRIVACY.md).
 - **Hosted on Azure.** The web page is served from Azure's global network; the backend that
   stores the User record runs in West Europe.
 

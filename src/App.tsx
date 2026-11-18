@@ -21,7 +21,9 @@ import { AuditEventsFailedAlert, AuditEventsView, LoadingAuditEvents } from './c
 import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
 import { SuggestedPolicyView } from './components/SuggestedPolicy';
 import { LoadingVerdicts, VerdictsFailedAlert, VerdictsView } from './components/Verdicts';
+import { NoUserRecordNotice, PrivacyNotice, UserRecordCard, UserRecordDeletedCard } from './components/Privacy';
 import type { ReadinessCheck } from './onboarding/readiness';
+import { HOME_HREF, MAIN_ID, PRIVACY_HREF, useRoute, type Route } from './route';
 import { useLoad, type LoadState } from './useLoad';
 import { useReadiness } from './onboarding/useReadiness';
 import {
@@ -64,16 +66,23 @@ export function App({
   signIn: SignInSetup | null;
   adminConsentResult: AdminConsentResult | null;
 }) {
+  const route = useRoute();
   return signIn ? (
-    <SignInPage setup={signIn} adminConsentResult={adminConsentResult} />
+    <SignInPage setup={signIn} adminConsentResult={adminConsentResult} route={route} />
   ) : (
-    <Page>
-      <SignInNotConfiguredAlert />
-    </Page>
+    <Page route={route}>{route === 'privacy' ? <PrivacyNotice /> : <SignInNotConfiguredAlert />}</Page>
   );
 }
 
-function SignInPage({ setup, adminConsentResult }: { setup: SignInSetup; adminConsentResult: AdminConsentResult | null }) {
+function SignInPage({
+  setup,
+  adminConsentResult,
+  route,
+}: {
+  setup: SignInSetup;
+  adminConsentResult: AdminConsentResult | null;
+  route: Route;
+}) {
   const { state, signIn, signOut } = useAuth(setup.client);
 
   const actions =
@@ -90,8 +99,17 @@ function SignInPage({ setup, adminConsentResult }: { setup: SignInSetup; adminCo
       </Button>
     ) : null;
 
+  if (route === 'privacy' && state.status !== 'signed-in') {
+    return (
+      <Page actions={actions} route={route}>
+        <PrivacyNotice />
+        <NoUserRecordNotice signedIn={false} />
+      </Page>
+    );
+  }
+
   return (
-    <Page actions={actions}>
+    <Page actions={actions} route={route}>
       {adminConsentResult && <AdminConsentResultAlert result={adminConsentResult} />}
       {state.status === 'starting' && <CheckingSignIn />}
       {(state.status === 'signed-out' || state.status === 'redirecting') && (
@@ -99,29 +117,61 @@ function SignInPage({ setup, adminConsentResult }: { setup: SignInSetup; adminCo
       )}
       {state.status === 'consent-required' && <ConsentRequiredAlert adminConsentUrl={setup.adminConsentUrl} />}
       {state.status === 'failed' && <SignInFailedAlert message={state.message} onRetry={signIn} />}
-      {state.status === 'signed-in' && <SignedIn
+      {state.status === 'signed-in' && (
+        <SignedIn
           user={state.user}
           userRecord={setup.userRecord}
           checkReadiness={setup.checkReadiness}
           loaders={setup}
-        />}
+          route={route}
+          onSignOut={signOut}
+        />
+      )}
     </Page>
   );
 }
 
-/** A new User makes their Contact consent choice before anything else; a returning User is not asked again. */
+/**
+ * A new User makes their Contact consent choice before anything else; a returning User is not asked
+ * again. On the privacy notice page, a User sees their User record and can change or delete it; once
+ * deleted, nothing continues until they sign out.
+ */
 function SignedIn({
   user,
   userRecord,
   checkReadiness,
   loaders,
+  route,
+  onSignOut,
 }: {
   user: SignedInUser;
   userRecord: UserRecordClient;
   checkReadiness: ReadinessCheck;
   loaders: AnalysisLoaders;
+  route: Route;
+  onSignOut: () => void;
 }) {
-  const { state, retry, saveContactConsent } = useUserRecord(userRecord);
+  const { state, retry, saveContactConsent, changeContactConsent, deleteUserRecord } = useUserRecord(userRecord);
+  if (state.status === 'deleted') return <UserRecordDeletedCard onSignOut={onSignOut} />;
+  if (route === 'privacy') {
+    return (
+      <>
+        <PrivacyNotice />
+        {state.status === 'loading' && <LoadingUserRecord />}
+        {state.status === 'failed' && <UserRecordFailedAlert message={state.message} onRetry={retry} />}
+        {state.status === 'choice-needed' && <NoUserRecordNotice signedIn />}
+        {state.status === 'known' && (
+          <UserRecordCard
+            record={state.record}
+            changing={state.changing}
+            error={state.error}
+            onChangeContactConsent={(contactConsent) => changeContactConsent(state.record, contactConsent)}
+            onDelete={() => deleteUserRecord(state.record)}
+          />
+        )}
+      </>
+    );
+  }
   switch (state.status) {
     case 'loading':
       return <LoadingUserRecord />;
@@ -250,11 +300,18 @@ function AuditEventsSection({ state, reload }: Loaded<AuditEvents>) {
   }
 }
 
-function Page({ actions, children }: { actions?: ReactNode; children: ReactNode }) {
+function Page({ actions, route, children }: { actions?: ReactNode; route: Route; children: ReactNode }) {
   return (
     <div className="sm-root app">
-      <Navbar brand={<Logo height={32} />} actions={actions} />
-      <main className="app-main">
+      <Navbar
+        brand={<Logo height={32} />}
+        links={[
+          { label: 'Home', href: HOME_HREF, active: route === 'home' },
+          { label: 'Privacy notice', href: PRIVACY_HREF, active: route === 'privacy' },
+        ]}
+        actions={actions}
+      />
+      <main className="app-main" id={MAIN_ID} tabIndex={-1}>
         <Badge tone="info">In development</Badge>
         <h1 className="h1 app-title">ASR Readiness</h1>
         <p className="body-lg app-lead">

@@ -13,6 +13,17 @@ const claims = {
 };
 const now = new Date('2026-11-17T10:00:00.000Z');
 
+/** The stored User record as the API returns it to its own User. */
+const record = (contactConsent: boolean, contactConsentDate = '2026-11-17T10:00:00.000Z') => ({
+  homeTenantId: tid,
+  username: 'ada@contoso.com',
+  firstName: 'Ada',
+  lastName: 'Lovelace',
+  email: 'ada@contoso.com',
+  contactConsent,
+  contactConsentDate,
+});
+
 /** Stores entities the way Table Storage would, so the test can see exactly what is kept. */
 function memoryStore(): UserStore & { entities: Map<string, UserEntity> } {
   const entities = new Map<string, UserEntity>();
@@ -24,6 +35,9 @@ function memoryStore(): UserStore & { entities: Map<string, UserEntity> } {
     },
     save: async (record) => {
       entities.set(`${record.homeTenantId}/${record.username}`, toEntity(record));
+    },
+    delete: async (homeTenantId, username) => {
+      entities.delete(`${homeTenantId}/${username}`);
     },
   };
 }
@@ -68,10 +82,7 @@ describe('handleUserRequest', () => {
   it('stores exactly the six User record fields from the token and the choice', async () => {
     const store = memoryStore();
     const response = await handleUserRequest(request('PUT', { contactConsent: true }), deps(store));
-    expect(response).toEqual({
-      status: 200,
-      jsonBody: { contactConsent: true, contactConsentDate: '2026-11-17T10:00:00.000Z' },
-    });
+    expect(response).toEqual({ status: 200, jsonBody: record(true) });
     expect([...store.entities.values()]).toEqual([
       {
         partitionKey: tid,
@@ -85,14 +96,52 @@ describe('handleUserRequest', () => {
     ]);
   });
 
-  it('recognises a returning User', async () => {
+  it('shows a returning User their whole stored User record', async () => {
     const d = deps();
     await handleUserRequest(request('PUT', { contactConsent: false }), d);
     const response = await handleUserRequest(request('GET'), d);
-    expect(response).toEqual({
-      status: 200,
-      jsonBody: { contactConsent: false, contactConsentDate: '2026-11-17T10:00:00.000Z' },
-    });
+    expect(response).toEqual({ status: 200, jsonBody: record(false) });
+  });
+
+  it('stores a withdrawn Contact consent with the date of the withdrawal', async () => {
+    const store = memoryStore();
+    await handleUserRequest(request('PUT', { contactConsent: true }), deps(store));
+    const later = { ...deps(store), now: () => new Date('2026-12-01T08:30:00.000Z') };
+    const response = await handleUserRequest(request('PUT', { contactConsent: false }), later);
+    expect(response).toEqual({ status: 200, jsonBody: record(false, '2026-12-01T08:30:00.000Z') });
+    expect([...store.entities.values()]).toEqual([
+      expect.objectContaining({ contactConsent: false, contactConsentDate: '2026-12-01T08:30:00.000Z' }),
+    ]);
+  });
+
+  it('deletes the signed-in User\'s record, so nothing about them remains', async () => {
+    const store = memoryStore();
+    await handleUserRequest(request('PUT', { contactConsent: true }), deps(store));
+    const response = await handleUserRequest(request('DELETE'), deps(store));
+    expect(response).toEqual({ status: 204 });
+    expect(store.entities.size).toBe(0);
+    expect((await handleUserRequest(request('GET'), deps(store))).status).toBe(404);
+  });
+
+  it('deletes only the record of the User the token names', async () => {
+    const store = memoryStore();
+    const other = { ...record(true), homeTenantId: '22222222-2222-2222-2222-222222222222' };
+    await store.save(other);
+    await handleUserRequest(request('PUT', { contactConsent: true }), deps(store));
+    await handleUserRequest(request('DELETE', { homeTenantId: other.homeTenantId }), deps(store));
+    expect([...store.entities.keys()]).toEqual([`${other.homeTenantId}/ada@contoso.com`]);
+  });
+
+  it('answers a delete without a record as done', async () => {
+    expect(await handleUserRequest(request('DELETE'), deps())).toEqual({ status: 204 });
+  });
+
+  it('deletes nothing without a valid token', async () => {
+    const store = memoryStore();
+    await handleUserRequest(request('PUT', { contactConsent: true }), deps(store));
+    const response = await handleUserRequest(request('DELETE', undefined, 'Bearer bad-token'), deps(store));
+    expect(response.status).toBe(401);
+    expect(store.entities.size).toBe(1);
   });
 
   it.each([
@@ -124,12 +173,20 @@ describe('handleUserRequest', () => {
   });
 
   it('rejects other methods', async () => {
-    expect((await handleUserRequest(request('DELETE'), deps())).status).toBe(405);
+    const response = await handleUserRequest(request('PATCH'), deps());
+    expect(response.status).toBe(405);
+    expect(response.headers?.['Allow']).toBe('GET, PUT, DELETE');
   });
 
   it('passes storage failures on instead of answering as if nothing was stored', async () => {
     const store = memoryStore();
     store.get = async () => Promise.reject(new Error('table unavailable'));
     await expect(handleUserRequest(request('GET'), deps(store))).rejects.toThrow('table unavailable');
+  });
+
+  it('passes delete failures on instead of answering as if the record was deleted', async () => {
+    const store = memoryStore();
+    store.delete = async () => Promise.reject(new Error('table unavailable'));
+    await expect(handleUserRequest(request('DELETE'), deps(store))).rejects.toThrow('table unavailable');
   });
 });

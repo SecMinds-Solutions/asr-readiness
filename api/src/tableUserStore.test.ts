@@ -13,7 +13,7 @@ const ada: UserRecord = {
 };
 
 function fakeTable(overrides: Partial<UserTable> = {}): UserTable {
-  return { getEntity: vi.fn(), upsertEntity: vi.fn(async () => ({})), ...overrides } as UserTable;
+  return { getEntity: vi.fn(), upsertEntity: vi.fn(async () => ({})), deleteEntity: vi.fn(async () => ({})), ...overrides } as UserTable;
 }
 
 describe('tableUserStore', () => {
@@ -54,6 +54,22 @@ describe('tableUserStore', () => {
   it('returns null for a User without a record', async () => {
     const getEntity = vi.fn(async () => Promise.reject(new RestError('not found', { statusCode: 404 })));
     await expect(tableUserStore(fakeTable({ getEntity } as Partial<UserTable>)).get(ada.homeTenantId, ada.username)).resolves.toBeNull();
+  });
+
+  it('deletes the entity of a Home tenant and username', async () => {
+    const table = fakeTable();
+    await tableUserStore(table).delete(ada.homeTenantId, ada.username);
+    expect(table.deleteEntity).toHaveBeenCalledWith(ada.homeTenantId, 'ada%40contoso.com');
+  });
+
+  it('treats deleting a record that does not exist as done', async () => {
+    const deleteEntity = vi.fn(async () => Promise.reject(new RestError('not found', { statusCode: 404 })));
+    await expect(tableUserStore(fakeTable({ deleteEntity } as Partial<UserTable>)).delete(ada.homeTenantId, ada.username)).resolves.toBeUndefined();
+  });
+
+  it('passes on other errors when deleting', async () => {
+    const deleteEntity = vi.fn(async () => Promise.reject(new RestError('forbidden', { statusCode: 403 })));
+    await expect(tableUserStore(fakeTable({ deleteEntity } as Partial<UserTable>)).delete(ada.homeTenantId, ada.username)).rejects.toThrow('forbidden');
   });
 
   it('passes on other storage errors', async () => {
