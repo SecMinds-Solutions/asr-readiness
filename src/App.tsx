@@ -19,6 +19,7 @@ import { coverageFailed, type RuleOverview } from './analysis/ruleOverview';
 import { verdictsFor } from './analysis/verdicts';
 import { AuditEventsFailedAlert, AuditEventsView, LoadingAuditEvents } from './components/AuditEvents';
 import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
+import { SuggestedPolicyView } from './components/SuggestedPolicy';
 import { LoadingVerdicts, VerdictsFailedAlert, VerdictsView } from './components/Verdicts';
 import type { ReadinessCheck } from './onboarding/readiness';
 import { useLoad, type LoadState } from './useLoad';
@@ -218,7 +219,13 @@ function VerdictsSection({
       />
     );
   }
-  return assessments ? <VerdictsView assessments={assessments} /> : <LoadingVerdicts />;
+  if (!assessments) return <LoadingVerdicts />;
+  return (
+    <>
+      <VerdictsView assessments={assessments} />
+      <SuggestedPolicyView assessments={assessments} />
+    </>
+  );
 }
 
 function RuleOverviewSection({ state, reload }: Loaded<RuleOverview>) {

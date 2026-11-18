@@ -67,6 +67,9 @@ export const ASR_RULES: readonly AsrRule[] = [
   rule('c1db55ab-c21a-4637-bb3f-a12568109d35', 'Use advanced protection against ransomware', 'useadvancedprotectionagainstransomware', 'AsrRansomwareAudited', 'Ransomware'),
 ];
 
+/** The settings catalog setting under a rule's Rule mode that holds the rule's own exclusions. */
+export const intuneExclusionsSetting = (asrRule: AsrRule): string => `${asrRule.intuneSetting}_perruleexclusions`;
+
 const bySetting = new Map(ASR_RULES.map((asrRule) => [asrRule.intuneSetting, asrRule]));
 
 export const ruleByIntuneSetting = (settingId: string): AsrRule | undefined => bySetting.get(settingId);

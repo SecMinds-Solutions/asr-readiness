@@ -14,9 +14,12 @@ const TONE: Record<Verdict, BadgeTone> = {
   'No evidence': 'neutral',
 };
 
+/** A Verdict as a badge with its word, so its color never stands alone. */
+export const VerdictBadge = ({ verdict }: { verdict: Verdict }) => <Badge tone={TONE[verdict]}>{verdict}</Badge>;
+
 function VerdictCell({ assessment }: { assessment: RuleAssessment }) {
   if (assessment.kind === 'already-blocking') return <Badge tone="success">Already blocking</Badge>;
-  return <Badge tone={TONE[assessment.verdict]}>{assessment.verdict}</Badge>;
+  return <VerdictBadge verdict={assessment.verdict} />;
 }
 
 /** Coverage counts Audit mode, so a rule that is Already blocking has none. */

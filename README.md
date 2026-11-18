@@ -14,8 +14,8 @@ ready-made Intune policy that you review and deploy yourself.
 - **Verdict per rule:** Ready to block, Ready with exclusions, Not ready, or No evidence,
   based on the last 30 days of audit events and with the share of devices it covers.
 - **Suggested exclusions:** per rule, never in a location where ordinary users can write files.
-- **Suggested policy:** an Intune settings catalog ASR policy as a JSON file to import.
-  The tool never changes anything in your tenant.
+- **Suggested policy:** an Intune settings catalog ASR policy as a JSON file to import,
+  which sets only the rules that are ready to Block. The tool never changes anything in your tenant.
 
 ## Trust
 

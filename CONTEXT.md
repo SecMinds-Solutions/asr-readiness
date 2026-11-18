@@ -73,7 +73,7 @@ A path where ordinary users can create files, such as Downloads, the temp folder
 An Exclusion the Analysis proposes for one rule so it can move to Block mode.
 
 **Suggested policy**:
-An Intune ASR policy the Analysis produces for the Tenant's admin to import, assign and deploy themselves. It sets Ready to block and Ready with exclusions rules to Block, with their Suggested exclusions, and leaves every other rule unchanged.
+An Intune ASR policy the Analysis produces for the Tenant's admin to import, assign and deploy themselves. It sets Ready to block and Ready with exclusions rules to Block, with their Suggested exclusions as per-rule exclusions, and leaves every other rule out, so the Tenant's own policies keep setting it. A device that gets it and a policy that sets one of its rules to Audit mode has a Conflict.
 _Avoid_: generated policy, deployment
 
 ### People and tenants

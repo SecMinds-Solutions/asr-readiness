@@ -412,6 +412,17 @@ describe('App: Verdicts', () => {
     expect(signIn.loadAuditPeriods).toHaveBeenCalledOnce();
   });
 
+  it('offers the Suggested policy with the rules that are ready, under the Verdicts', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => ({
+      [ADOBE]: { devices: 12, shortestDays: 20 },
+    }));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    expect(await screen.findByRole('heading', { name: 'Suggested policy' })).toBeInTheDocument();
+    const policy = screen.getByRole('table', { name: /Suggested policy sets to Block mode/ });
+    expect(within(policy).getByRole('cell', { name: 'Block Adobe Reader from creating child processes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Download Suggested policy/ })).toBeInTheDocument();
+  });
+
   it('gives no Verdicts when the Coverage query failed, rather than No evidence for every rule', async () => {
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => ({ ...adobeInAudit, coverage: { failed: 'Advanced hunting did not answer.' } }));
     render(<App signIn={signIn} adminConsentResult={null} />);
