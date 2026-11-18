@@ -3,6 +3,7 @@
 // exclusions. It holds only those rules, so every other rule stays as the Tenant's own policies set
 // it (ADR-0008). Pure: no network, storage or React.
 import { ASR_RULES, INTUNE_ASR_SETTING, intuneExclusionsSetting, type AsrRule } from './asrRules';
+import { localDate } from '../localDate';
 import { userWritableLocation } from './userWritable';
 import type { RuleAssessment, VerdictCoverage } from './verdicts';
 
@@ -32,11 +33,6 @@ export interface SuggestedPolicy {
   /** The name to save the policy under. */
   fileName: string;
 }
-
-const pad = (value: number) => String(value).padStart(2, '0');
-
-/** The User's local date as yyyy-mm-dd: the day they see on their own clock. */
-const localDate = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
 function readyRule(assessment: RuleAssessment): SuggestedRule | null {
   if (assessment.kind !== 'verdict') return null;

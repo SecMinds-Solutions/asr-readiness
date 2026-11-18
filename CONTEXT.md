@@ -96,7 +96,7 @@ A person who signs in with an Entra account. The only data kept about a User is 
 _Avoid_: customer, account, lead
 
 **SecMinds admin**:
-A SecMinds employee who may see every User record, but not change or delete one. Decided by an app role in SecMinds' own tenant, never by email address.
+A SecMinds employee who may see and export every User record, but not change or delete one. Decided by an app role in SecMinds' own tenant, never by email address.
 _Avoid_: administrator, superuser
 
 **Contact consent**:

@@ -78,3 +78,37 @@ describe('AdminPage: filter and counts', () => {
     expect(screen.queryByRole('table', { name: 'Users per Home tenant' })).toBeNull();
   });
 });
+
+describe('AdminPage: CSV export', () => {
+  const download = async (records: UserRecord[], filter = false) => {
+    const saveFile = vi.fn();
+    render(<AdminPage client={client(records)} saveFile={saveFile} />);
+    await screen.findByRole('table', { name: 'Every stored User record' });
+    if (filter) fireEvent.click(screen.getByRole('checkbox', { name: 'Only Users with Contact consent' }));
+    fireEvent.click(screen.getByRole('button', { name: /Download CSV/ }));
+    expect(saveFile).toHaveBeenCalledTimes(1);
+    return saveFile.mock.calls[0] as [string, string, string];
+  };
+
+  it('saves every shown User as UTF-8 CSV with a dated file name', async () => {
+    const [fileName, contents, mediaType] = await download(users);
+    expect(fileName).toMatch(/^asr-readiness-users-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(mediaType).toBe('text/csv;charset=utf-8');
+    expect(contents.startsWith('\uFEFFHome tenant ID,')).toBe(true);
+    expect(contents.trimEnd().split('\r\n')).toHaveLength(4);
+  });
+
+  it('exports only the Users with Contact consent while the filter is on', async () => {
+    const [, contents] = await download(users, true);
+    const rows = contents.trimEnd().split('\r\n').slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toContain('ada@a.com');
+    expect(contents).not.toContain('grace@b.com');
+  });
+
+  it('offers no download when no row is shown', async () => {
+    render(<AdminPage client={client([])} saveFile={vi.fn()} />);
+    await screen.findByText('No User records yet');
+    expect(screen.queryByRole('button', { name: /Download CSV/ })).toBeNull();
+  });
+});

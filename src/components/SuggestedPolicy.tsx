@@ -4,24 +4,10 @@ import { suggestedPolicy, type SuggestedPolicy, type SuggestedRule } from '../an
 import type { RuleAssessment } from '../analysis/verdicts';
 import { errorMessage } from '../errorMessage';
 import { devicesText } from './devicesText';
+import { saveInBrowser, type SaveFile } from './saveFile';
 import { VerdictBadge } from './Verdicts';
 
 const { Alert, Button, Card, EmptyState, Table } = SecMinds;
-
-/** Saves a file in the User's browser; nothing is sent anywhere. */
-export type SaveFile = (fileName: string, contents: string) => void;
-
-export const saveInBrowser: SaveFile = (fileName, contents) => {
-  const url = URL.createObjectURL(new Blob([contents], { type: 'application/json' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  // Some browsers read the file after click() returns; revoking at once can cancel the download.
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-};
 
 type Built = { status: 'built'; value: SuggestedPolicy } | { status: 'none' } | { status: 'failed'; message: string };
 

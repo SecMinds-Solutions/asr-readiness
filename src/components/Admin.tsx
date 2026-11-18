@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { SecMinds } from '../design-system';
 import type { UserRecord, UserRecordClient } from '../user-record/client';
+import { USER_RECORDS_CSV_TYPE, userRecordsCsv, userRecordsCsvFileName } from '../user-record/csv';
 import { userRecordCounts, withContactConsent } from '../user-record/summary';
 import { useLoad } from '../useLoad';
+import { saveInBrowser, type SaveFile } from './saveFile';
 
 const { Alert, Badge, Button, Card, Checkbox, EmptyState, Spinner, Stat, Table } = SecMinds;
 
@@ -21,7 +23,7 @@ function ContactConsentCell({ user }: { user: UserRecord }) {
 }
 
 /** Every User record, for SecMinds admins. Read-only: the API refuses everyone else. */
-export function AdminPage({ client }: { client: UserRecordClient }) {
+export function AdminPage({ client, saveFile = saveInBrowser }: { client: UserRecordClient; saveFile?: SaveFile }) {
   const load = useCallback(() => client.listUserRecords(), [client]);
   const { state, reload } = useLoad(load);
 
@@ -50,7 +52,7 @@ export function AdminPage({ client }: { client: UserRecordClient }) {
           </Alert>
         );
       }
-      return <UserRecordsCard users={state.value.users} />;
+      return <UserRecordsCard users={state.value.users} saveFile={saveFile} />;
   }
 }
 
@@ -78,8 +80,8 @@ function UserRecordCountsCard({ users }: { users: UserRecord[] }) {
   );
 }
 
-/** The User records, optionally only those with Contact consent, with their counts above. */
-function UserRecordsCard({ users }: { users: UserRecord[] }) {
+/** The User records, optionally only those with Contact consent, with their counts above and a CSV of the rows shown. */
+function UserRecordsCard({ users, saveFile }: { users: UserRecord[]; saveFile: SaveFile }) {
   const [onlyWithConsent, setOnlyWithConsent] = useState(false);
   const shown = useMemo(() => (onlyWithConsent ? withContactConsent(users) : users), [users, onlyWithConsent]);
   return (
@@ -92,6 +94,17 @@ function UserRecordsCard({ users }: { users: UserRecord[] }) {
           checked={onlyWithConsent}
           onChange={(event) => setOnlyWithConsent(event.target.checked)}
         />
+        {shown.length > 0 && (
+          <div className="app-row">
+            <Button
+              variant="secondary"
+              icon="download"
+              onClick={() => saveFile(userRecordsCsvFileName(new Date()), userRecordsCsv(shown), USER_RECORDS_CSV_TYPE)}
+            >
+              Download CSV
+            </Button>
+          </div>
+        )}
         {users.length === 0 ? (
           <EmptyState icon="users" title="No User records yet">
             Nobody has signed in and made the Contact consent choice yet.

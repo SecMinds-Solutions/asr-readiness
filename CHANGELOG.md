@@ -32,6 +32,7 @@ All notable changes to this project are documented in this file.
 - The Analysis is shown in three tabs: Verdicts (with the Suggested policy), ASR rules and Audit events. Each part is still read once; switching tabs never reads Microsoft Graph again.
 - Admin page for SecMinds admins: a list of every User record, at `#admin`, with the navbar link shown only to admins. The API's read-only `GET /api/users` returns the records only to a User with the app role Admin assigned in SecMinds' own tenant; everyone else gets "not allowed". The privacy notice says who can see the records. ADR-0009 records the decision.
 - Admin page: counts of all Users, Users with Contact consent and Users per Home tenant, and a filter that shows only Users with Contact consent. Filtering and counting happen in the browser on the records already read.
+- Admin page: a CSV download of the User records shown (all, or only those with Contact consent), UTF-8 with a BOM and the date in the file name. Values that start like a spreadsheet formula are exported as text. The privacy notice says admins can export the records.
 - `.env.example` with `VITE_ENTRA_CLIENT_ID`, the client ID of the app registration to sign in with.
 
 ### Changed

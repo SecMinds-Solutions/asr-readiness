@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ASR_RULES } from '../analysis/asrRules';
 import type { RuleAssessment } from '../analysis/verdicts';
-import { saveInBrowser, SuggestedPolicyView } from './SuggestedPolicy';
+import { SuggestedPolicyView } from './SuggestedPolicy';
 
 const [drivers, lsass, wmi] = ASR_RULES as [(typeof ASR_RULES)[number], (typeof ASR_RULES)[number], (typeof ASR_RULES)[number]];
 const coverage = { auditDevices: 40, devices: 50 };
@@ -59,38 +59,5 @@ describe('SuggestedPolicyView', () => {
     render(<SuggestedPolicyView assessments={unsafe} saveFile={vi.fn()} />);
     expect(screen.getByText(/could not be made/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Download/ })).toBeNull();
-  });
-});
-
-describe('saveInBrowser', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.unstubAllGlobals();
-  });
-
-  it('saves the contents as a JSON file under its name, and frees the object URL only after the download started', async () => {
-    vi.useFakeTimers();
-    const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:policy');
-    const revokeObjectURL = vi.fn<(url: string) => void>();
-    vi.stubGlobal('URL', class extends URL {
-      static createObjectURL = createObjectURL;
-      static revokeObjectURL = revokeObjectURL;
-    });
-    let clicked: { href: string; download: string; attached: boolean } | undefined;
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-      clicked = { href: this.href, download: this.download, attached: document.body.contains(this) };
-    });
-
-    saveInBrowser('policy.json', '{"name":"x"}\n');
-
-    expect(clicked).toEqual({ href: 'blob:policy', download: 'policy.json', attached: true });
-    const blob = createObjectURL.mock.calls[0]?.[0] as Blob;
-    expect(blob.type).toBe('application/json');
-    expect(await blob.text()).toBe('{"name":"x"}\n');
-    expect(document.querySelector('a[download]')).toBeNull();
-    expect(revokeObjectURL).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(60_000);
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:policy');
-    click.mockRestore();
   });
 });
