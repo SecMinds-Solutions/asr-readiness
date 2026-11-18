@@ -12,7 +12,7 @@ describe('signedInUserFrom', () => {
         homeAccountId: `aaaa.${homeTenantId}`,
         tenantId: homeTenantId,
       }),
-    ).toEqual({ name: 'Ada Lovelace', username: 'ada@contoso.com', homeTenantId });
+    ).toEqual({ name: 'Ada Lovelace', username: 'ada@contoso.com', homeTenantId, admin: false });
   });
 
   it('takes the Home tenant from the home account, not the tenant signed in to', () => {
@@ -20,6 +20,22 @@ describe('signedInUserFrom', () => {
       signedInUserFrom({ name: 'Ada', username: 'ada@contoso.com', homeAccountId: `aaaa.${homeTenantId}`, tenantId: otherTenantId })
         .homeTenantId,
     ).toBe(homeTenantId);
+  });
+
+  it.each([
+    [['Admin'], true],
+    [['Reader'], false],
+    ['Admin', false],
+    [undefined, false],
+  ])('treats roles %j in the ID token as admin: %s, only to show the admin link', (roles, admin) => {
+    expect(
+      signedInUserFrom({
+        username: 'frans@secminds.nl',
+        homeAccountId: `aaaa.${homeTenantId}`,
+        tenantId: homeTenantId,
+        idTokenClaims: roles === undefined ? {} : { roles: roles as string[] },
+      }).admin,
+    ).toBe(admin);
   });
 
   it('falls back to the username when the account has no name', () => {

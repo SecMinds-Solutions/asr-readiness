@@ -1,3 +1,4 @@
+import { bearerToken, unauthorized } from './bearer.js';
 import { identityFromClaims, parseContactConsentChoice, type UserIdentity, type UserRecord } from './userRecord.js';
 
 /** Reads and writes User records. */
@@ -27,16 +28,6 @@ export interface UserHandlerDeps {
   verify(token: string): Promise<Record<string, unknown>>;
 }
 
-const unauthorized: UserResponse = {
-  status: 401,
-  jsonBody: { error: 'A valid access token is required.' },
-  headers: { 'WWW-Authenticate': 'Bearer' },
-};
-
-function bearerToken(authorization: string | null): string | null {
-  const match = /^Bearer (\S+)$/.exec(authorization ?? '');
-  return match?.[1] ?? null;
-}
 
 const METHODS = ['GET', 'PUT', 'DELETE'];
 
@@ -52,19 +43,19 @@ export async function handleUserRequest(request: UserRequest, { store, now, veri
   if (!METHODS.includes(request.method)) return { status: 405, headers: { Allow: METHODS.join(', ') } };
 
   const token = bearerToken(request.authorization);
-  if (!token) return unauthorized;
+  if (!token) return { ...unauthorized };
   let claims: Record<string, unknown>;
   try {
     claims = await verify(token);
   } catch {
-    return unauthorized;
+    return { ...unauthorized };
   }
 
   let identity: UserIdentity;
   try {
     identity = identityFromClaims(claims);
   } catch {
-    return unauthorized;
+    return { ...unauthorized };
   }
 
   if (request.method === 'GET') {

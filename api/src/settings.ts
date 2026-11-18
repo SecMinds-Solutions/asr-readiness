@@ -6,6 +6,8 @@ export interface Settings {
   clientId: string;
   tableEndpoint: string;
   tableName: string;
+  /** The tenant whose Admin role assignments count (ADMIN_TENANT_ID); null when not set, so nobody is an admin. */
+  adminTenantId: string | null;
 }
 
 
@@ -20,5 +22,7 @@ export function readSettings(env: Record<string, string | undefined>): Settings 
   if (!GUID.test(clientId)) throw new Error('App setting ENTRA_CLIENT_ID is not a GUID.');
   const tableEndpoint = setting(env, 'USER_TABLE_ENDPOINT');
   if (!tableEndpoint.startsWith('https://')) throw new Error('App setting USER_TABLE_ENDPOINT must be an https URL.');
-  return { clientId, tableEndpoint, tableName: setting(env, 'USER_TABLE_NAME') };
+  const adminTenantId = env['ADMIN_TENANT_ID']?.trim() || null;
+  if (adminTenantId && !GUID.test(adminTenantId)) throw new Error('App setting ADMIN_TENANT_ID is not a GUID.');
+  return { clientId, tableEndpoint, tableName: setting(env, 'USER_TABLE_NAME'), adminTenantId };
 }

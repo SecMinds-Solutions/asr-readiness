@@ -18,7 +18,11 @@ export interface UserRecordClient {
   saveContactConsent(contactConsent: boolean): Promise<UserRecord>;
   /** Deletes the User record; resolves only once the API confirms it is gone. */
   deleteUserRecord(): Promise<void>;
+  /** Every User record, for SecMinds admins only; the API decides who is one. */
+  listUserRecords(): Promise<UserRecordList>;
 }
+
+export type UserRecordList = { status: 'allowed'; users: UserRecord[] } | { status: 'not-allowed' };
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -39,10 +43,10 @@ export function createUserRecordClient(
   fetchFn: typeof fetch = (...args) => fetch(...args),
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): UserRecordClient {
-  async function send(method: 'GET' | 'PUT' | 'DELETE', body?: string): Promise<Response> {
+  async function send(method: 'GET' | 'PUT' | 'DELETE', body?: string, path = '/api/user'): Promise<Response> {
     const headers = new Headers({ Authorization: `Bearer ${await accessToken()}` });
     if (body) headers.set('Content-Type', 'application/json');
-    return fetchFn('/api/user', { method, headers, body, signal: AbortSignal.timeout(timeoutMs) });
+    return fetchFn(path, { method, headers, body, signal: AbortSignal.timeout(timeoutMs) });
   }
 
   const failed = (response: Response) => new Error(`The User record service answered HTTP ${response.status}.`);
@@ -60,6 +64,15 @@ export function createUserRecordClient(
       return response.status === 404 ? null : recordOf(response);
     },
     saveContactConsent: async (contactConsent) => recordOf(await send('PUT', JSON.stringify({ contactConsent }))),
+    listUserRecords: async () => {
+      const response = await send('GET', undefined, '/api/users');
+      if (response.status === 403) return { status: 'not-allowed' };
+      if (!response.ok) throw failed(response);
+      const json: unknown = await response.json();
+      const users = typeof json === 'object' && json !== null ? (json as Record<string, unknown>)['users'] : undefined;
+      if (!Array.isArray(users) || !users.every(isUserRecord)) throw new Error('The User record service sent an unexpected answer.');
+      return { status: 'allowed', users };
+    },
     deleteUserRecord: async () => {
       const response = await send('DELETE');
       if (response.status !== 204) throw failed(response);

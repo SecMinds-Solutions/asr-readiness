@@ -78,7 +78,7 @@ describe('createMsalAuthClient', () => {
       handleRedirectPromise: vi.fn<MsalApp['handleRedirectPromise']>(async () => ({ account: ada }) as AuthenticationResult),
     });
     const client = createMsalAuthClient(msal, apiScope);
-    await expect(client.start()).resolves.toEqual({ name: 'Ada', username: 'Ada@contoso.com', homeTenantId });
+    await expect(client.start()).resolves.toEqual({ name: 'Ada', username: 'Ada@contoso.com', homeTenantId, admin: false });
     expect(msal.initialize).toHaveBeenCalledBefore(msal.handleRedirectPromise);
     expect(msal.setActiveAccount).toHaveBeenCalledWith(ada);
   });

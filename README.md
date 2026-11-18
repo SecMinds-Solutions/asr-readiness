@@ -36,7 +36,9 @@ ready-made Intune policy that you review and deploy yourself.
   sign-in. You make the choice after your first sign-in, and the box is unticked by default.
   The record is kept in Azure Table Storage in West Europe until you delete it. Signed in,
   you can see your record, withdraw your Contact consent and delete the record yourself, from
-  the app's privacy notice; see [`PRIVACY.md`](PRIVACY.md).
+  the app's privacy notice; see [`PRIVACY.md`](PRIVACY.md). A small number of SecMinds
+  admins can see the User records, but not change or delete them
+  ([ADR-0009](docs/adr/0009-secminds-admins-can-read-user-records.md)).
 - **Hosted on Azure.** The web page is served from Azure's global network; the backend that
   stores the User record runs in West Europe.
 

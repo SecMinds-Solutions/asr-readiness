@@ -13,7 +13,7 @@ const ada: UserRecord = {
 };
 
 function fakeTable(overrides: Partial<UserTable> = {}): UserTable {
-  return { getEntity: vi.fn(), upsertEntity: vi.fn(async () => ({})), deleteEntity: vi.fn(async () => ({})), ...overrides } as UserTable;
+  return { getEntity: vi.fn(), upsertEntity: vi.fn(async () => ({})), deleteEntity: vi.fn(async () => ({})), listEntities: vi.fn(), ...overrides } as UserTable;
 }
 
 describe('tableUserStore', () => {
@@ -70,6 +70,28 @@ describe('tableUserStore', () => {
   it('passes on other errors when deleting', async () => {
     const deleteEntity = vi.fn(async () => Promise.reject(new RestError('forbidden', { statusCode: 403 })));
     await expect(tableUserStore(fakeTable({ deleteEntity } as Partial<UserTable>)).delete(ada.homeTenantId, ada.username)).rejects.toThrow('forbidden');
+  });
+
+  it('lists every stored record, across all pages of the table, without Table Storage metadata', async () => {
+    const entity = (username: string) => ({
+      partitionKey: ada.homeTenantId,
+      rowKey: encodeURIComponent(username),
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'ada@contoso.com',
+      contactConsent: true,
+      contactConsentDate: ada.contactConsentDate,
+      etag: 'W/"x"',
+      timestamp: '2026-11-17T10:00:00.000Z',
+    });
+    // The SDK's iterator follows continuation tokens, so iterating it reads every page.
+    async function* pages() {
+      yield entity('ada@contoso.com');
+      yield entity('grace@contoso.com');
+    }
+    const listEntities = vi.fn(() => pages());
+    const records = await tableUserStore(fakeTable({ listEntities } as unknown as Partial<UserTable>)).list();
+    expect(records).toEqual([ada, { ...ada, username: 'grace@contoso.com' }]);
   });
 
   it('passes on other storage errors', async () => {

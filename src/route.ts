@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 
 /** The pages of the app, addressed by the URL fragment so the static host needs no routes. */
-export type Route = 'home' | 'privacy';
+export type Route = 'home' | 'privacy' | 'admin';
 
 export const PRIVACY_HREF = '#privacy';
 export const HOME_HREF = '#';
+export const ADMIN_HREF = '#admin';
 
 /** The id of the page's main element, which takes focus when the page changes. */
 export const MAIN_ID = 'main';
 
-export const routeOf = (hash: string): Route => (hash === PRIVACY_HREF ? 'privacy' : 'home');
+export const routeOf = (hash: string): Route => (hash === PRIVACY_HREF ? 'privacy' : hash === ADMIN_HREF ? 'admin' : 'home');
 
 /**
  * The page the URL fragment names, kept up to date as the User follows links or goes back. On a

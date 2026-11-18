@@ -1,10 +1,18 @@
 import type { AccountInfo } from '@azure/msal-browser';
 
+/** The app role of SecMinds admins, as the app registration defines it. */
+export const ADMIN_ROLE = 'Admin';
+
 /** Who is signed in, as shown in the app. */
 export interface SignedInUser {
   name: string;
   username: string;
   homeTenantId: string;
+  /**
+   * Whether the ID token carries the app role Admin. It only decides whether the app shows the
+   * admin page link; the API checks the role and the admin tenant itself.
+   */
+  admin: boolean;
 }
 
 /**
@@ -13,8 +21,10 @@ export interface SignedInUser {
  * another one, such as a guest or GDAP sign-in.
  */
 export function signedInUserFrom(
-  account: Pick<AccountInfo, 'name' | 'username' | 'homeAccountId' | 'tenantId'>,
+  account: Pick<AccountInfo, 'name' | 'username' | 'homeAccountId' | 'tenantId' | 'idTokenClaims'>,
 ): SignedInUser {
   const homeTenantId = account.homeAccountId.split('.')[1] || account.tenantId;
-  return { name: account.name || account.username, username: account.username, homeTenantId };
+  const roles = account.idTokenClaims?.roles;
+  const admin = Array.isArray(roles) && roles.includes(ADMIN_ROLE);
+  return { name: account.name || account.username, username: account.username, homeTenantId, admin };
 }

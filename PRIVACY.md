@@ -28,6 +28,11 @@ close it. ASR Readiness uses no analytics or trackers.
 - To know who uses ASR Readiness, and to email you about ASR Readiness itself.
 - Only with your Contact consent: to email you about SecMinds' other products.
 
+## Who can see it
+
+A small number of SecMinds admins can see every User record. They cannot change or delete
+your record. Nobody else at SecMinds has access through the app.
+
 ## Where and for how long
 
 The User record is stored in Azure Table Storage in Microsoft's West Europe region, in the

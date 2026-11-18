@@ -30,6 +30,7 @@ All notable changes to this project are documented in this file.
 - A signed-in User can see their stored User record on the privacy notice, withdraw or give their Contact consent (stored with the date of the new choice), and delete their User record after a confirmation. The API's `GET /api/user` now returns the whole User record of the signed-in User, and `DELETE /api/user` removes it from storage. After deleting, the app offers only sign-out.
 - A button in the navbar switches between light and dark mode. Without a choice the app follows the system setting; the choice is remembered in the browser's local storage, and only for the visit when the browser does not allow that.
 - The Analysis is shown in three tabs: Verdicts (with the Suggested policy), ASR rules and Audit events. Each part is still read once; switching tabs never reads Microsoft Graph again.
+- Admin page for SecMinds admins: a list of every User record, at `#admin`, with the navbar link shown only to admins. The API's read-only `GET /api/users` returns the records only to a User with the app role Admin assigned in SecMinds' own tenant; everyone else gets "not allowed". The privacy notice says who can see the records. ADR-0009 records the decision.
 - `.env.example` with `VITE_ENTRA_CLIENT_ID`, the client ID of the app registration to sign in with.
 
 ### Changed

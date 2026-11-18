@@ -37,6 +37,12 @@ export function PrivacyNotice() {
         <li>Only with your Contact consent: to email you about SecMinds&apos; other products.</li>
       </ul>
 
+      <h4 className="h4">Who can see it</h4>
+      <p className="app-text">
+        A small number of SecMinds admins can see every User record. They cannot change or delete your record. Nobody else at SecMinds has access through
+        the app.
+      </p>
+
       <h4 className="h4">Where and for how long</h4>
       <p className="app-text">
         The User record is stored in Azure Table Storage in Microsoft&apos;s West Europe region, in the European Union. It is kept

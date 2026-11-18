@@ -16,6 +16,7 @@ const ada: SignedInUser = {
   name: 'Ada Lovelace',
   username: 'ada@contoso.com',
   homeTenantId: '11111111-1111-1111-1111-111111111111',
+  admin: false,
 };
 const consentUrl = 'https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id=abc';
 
@@ -49,6 +50,7 @@ function fakeUserRecord(stored: UserRecord | null = storedRecord): UserRecordCli
       contactConsentDate: '2026-11-17T10:00:00.000Z',
     })),
     deleteUserRecord: vi.fn(async () => {}),
+    listUserRecords: vi.fn(async () => ({ status: 'not-allowed' as const })),
   };
 }
 
@@ -357,6 +359,80 @@ describe('App: privacy notice and the User record', () => {
     window.location.hash = '#privacy';
     render(<App signIn={setup(signedIn(), fakeUserRecord(null))} adminConsentResult={null} />);
     expect(await screen.findByText(/Nothing is stored about you yet/)).toBeInTheDocument();
+  });
+});
+
+describe('App: admin page', () => {
+  const frans: SignedInUser = { name: 'Frans', username: 'frans@secminds.nl', homeTenantId: ada.homeTenantId, admin: true };
+  const users: UserRecord[] = [
+    storedRecord,
+    { ...storedRecord, username: 'grace@fabrikam.com', firstName: '<b>Grace</b>', lastName: '', contactConsent: true },
+  ];
+
+  afterEach(() => {
+    window.location.hash = '';
+  });
+
+  it('shows the Admin link only to a User whose ID token has the Admin role', async () => {
+    const { unmount } = render(<App signIn={setup(fakeClient(async () => ada))} adminConsentResult={null} />);
+    await screen.findByRole('heading', { name: 'Signed in' });
+    expect(within(screen.getByRole('navigation')).queryByRole('link', { name: 'Admin' })).toBeNull();
+    unmount();
+
+    render(<App signIn={setup(fakeClient(async () => frans))} adminConsentResult={null} />);
+    await screen.findByRole('heading', { name: 'Signed in' });
+    expect(within(screen.getByRole('navigation')).getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '#admin');
+  });
+
+  it('lists every User record to an admin, as text', async () => {
+    const userRecord = fakeUserRecord();
+    vi.mocked(userRecord.listUserRecords).mockResolvedValue({ status: 'allowed', users });
+    window.location.hash = '#admin';
+    const { container } = render(<App signIn={setup(fakeClient(async () => frans), userRecord)} adminConsentResult={null} />);
+    const table = await screen.findByRole('table', { name: 'Every stored User record' });
+    expect(within(table).getByText('grace@fabrikam.com')).toBeInTheDocument();
+    expect(within(table).getByText('<b>Grace</b>')).toBeInTheDocument();
+    expect(within(table).getByText('Given')).toBeInTheDocument();
+    expect(within(table).getAllByText('2026-11-01')).toHaveLength(2);
+    expect(container.querySelector('b')).toBeNull();
+    expect(userRecord.listUserRecords).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('heading', { name: 'Signed in' })).toBeNull();
+  });
+
+  it('says "not allowed" when the API refuses the User, also if they open the page by its address', async () => {
+    window.location.hash = '#admin';
+    render(<App signIn={setup(fakeClient(async () => ada))} adminConsentResult={null} />);
+    expect(await alertWith('Not allowed')).toHaveTextContent('Only SecMinds admins can see the User records.');
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('shows an empty state when there are no User records', async () => {
+    const userRecord = fakeUserRecord();
+    vi.mocked(userRecord.listUserRecords).mockResolvedValue({ status: 'allowed', users: [] });
+    window.location.hash = '#admin';
+    render(<App signIn={setup(fakeClient(async () => frans), userRecord)} adminConsentResult={null} />);
+    expect(await screen.findByText('No User records yet')).toBeInTheDocument();
+  });
+
+  it('shows why the User records could not be read and lets the admin try again', async () => {
+    const userRecord = fakeUserRecord();
+    vi.mocked(userRecord.listUserRecords)
+      .mockRejectedValueOnce(new Error('The User record service answered HTTP 500.'))
+      .mockResolvedValue({ status: 'allowed', users });
+    window.location.hash = '#admin';
+    render(<App signIn={setup(fakeClient(async () => frans), userRecord)} adminConsentResult={null} />);
+    const alert = await alertWith('The User records could not be read');
+    expect(alert).toHaveTextContent('HTTP 500');
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('table', { name: 'Every stored User record' })).toBeInTheDocument();
+  });
+
+  it('asks a signed-out User to sign in, without reading anything', async () => {
+    const signIn = setup(fakeClient(async () => null));
+    window.location.hash = '#admin';
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    expect(await screen.findByText('Sign in as a SecMinds admin to see the User records.')).toBeInTheDocument();
+    expect(signIn.userRecord.listUserRecords).not.toHaveBeenCalled();
   });
 });
 

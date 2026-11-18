@@ -67,6 +67,30 @@ describe('createUserRecordClient', () => {
     await expect(createUserRecordClient(async () => 't', respond(200, body)).userRecord()).rejects.toThrow();
   });
 
+  it('lists every User record for a SecMinds admin, with their access token', async () => {
+    const fetchFn = respond(200, { users: [record, { ...record, username: 'grace@contoso.com' }] });
+    const client = createUserRecordClient(async () => 'api-token', fetchFn);
+    await expect(client.listUserRecords()).resolves.toEqual({ status: 'allowed', users: [record, { ...record, username: 'grace@contoso.com' }] });
+    const [url, init] = fetchFn.mock.lastCall ?? [];
+    expect(url).toBe('/api/users');
+    expect(init?.method).toBe('GET');
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer api-token');
+  });
+
+  it('says when the User is not allowed to list User records', async () => {
+    await expect(createUserRecordClient(async () => 't', respond(403, { error: 'x' })).listUserRecords()).resolves.toEqual({
+      status: 'not-allowed',
+    });
+  });
+
+  it.each([
+    ['HTTP 500', respond(500, { error: 'x' })],
+    ['a list with a record that is not a User record', respond(200, { users: [{ ...record, contactConsent: 'yes' }] })],
+    ['an answer without a list', respond(200, { users: 'all' })],
+  ])('fails on %s instead of showing an empty list', async (_, fetchFn) => {
+    await expect(createUserRecordClient(async () => 't', fetchFn).listUserRecords()).rejects.toThrow();
+  });
+
   it('gives up when the API does not answer in time', async () => {
     const hanging = vi.fn<typeof fetch>(
       (_, init) => new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))),

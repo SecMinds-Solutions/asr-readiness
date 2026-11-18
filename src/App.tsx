@@ -22,10 +22,11 @@ import { AuditEventsFailedAlert, AuditEventsView, LoadingAuditEvents } from './c
 import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
 import { SuggestedPolicyView } from './components/SuggestedPolicy';
 import { LoadingVerdicts, VerdictsFailedAlert, VerdictsView } from './components/Verdicts';
+import { AdminPage, AdminSignInNotice } from './components/Admin';
 import { ThemeToggle } from './components/ThemeToggle';
 import { NoUserRecordNotice, PrivacyNotice, UserRecordCard, UserRecordDeletedCard } from './components/Privacy';
 import type { ReadinessCheck } from './onboarding/readiness';
-import { HOME_HREF, MAIN_ID, PRIVACY_HREF, useRoute, type Route } from './route';
+import { ADMIN_HREF, HOME_HREF, MAIN_ID, PRIVACY_HREF, useRoute, type Route } from './route';
 import { useLoad, type LoadState } from './useLoad';
 import { useReadiness } from './onboarding/useReadiness';
 import {
@@ -101,6 +102,8 @@ function SignInPage({
       </Button>
     ) : null;
 
+  const admin = state.status === 'signed-in' && state.user.admin;
+
   if (route === 'privacy' && state.status !== 'signed-in') {
     return (
       <Page actions={actions} route={route}>
@@ -110,8 +113,16 @@ function SignInPage({
     );
   }
 
+  if (route === 'admin' && state.status !== 'signed-in') {
+    return (
+      <Page actions={actions} route={route}>
+        <AdminSignInNotice />
+      </Page>
+    );
+  }
+
   return (
-    <Page actions={actions} route={route}>
+    <Page actions={actions} route={route} admin={admin}>
       {adminConsentResult && <AdminConsentResultAlert result={adminConsentResult} />}
       {state.status === 'starting' && <CheckingSignIn />}
       {(state.status === 'signed-out' || state.status === 'redirecting') && (
@@ -155,6 +166,8 @@ function SignedIn({
 }) {
   const { state, retry, saveContactConsent, changeContactConsent, deleteUserRecord } = useUserRecord(userRecord);
   if (state.status === 'deleted') return <UserRecordDeletedCard onSignOut={onSignOut} />;
+  // The API decides who may see the User records; anyone else gets a "not allowed" message here.
+  if (route === 'admin') return <AdminPage client={userRecord} />;
   if (route === 'privacy') {
     return (
       <>
@@ -309,7 +322,8 @@ function AuditEventsSection({ state, reload }: Loaded<AuditEvents>) {
   }
 }
 
-function Page({ actions, route, children }: { actions?: ReactNode; route: Route; children: ReactNode }) {
+/** `admin` only shows the admin page link; the API checks who may see the User records. */
+function Page({ actions, route, admin = false, children }: { actions?: ReactNode; route: Route; admin?: boolean; children: ReactNode }) {
   return (
     <div className="sm-root app">
       <Navbar
@@ -317,6 +331,7 @@ function Page({ actions, route, children }: { actions?: ReactNode; route: Route;
         links={[
           { label: 'Home', href: HOME_HREF, active: route === 'home' },
           { label: 'Privacy notice', href: PRIVACY_HREF, active: route === 'privacy' },
+          ...(admin ? [{ label: 'Admin', href: ADMIN_HREF, active: route === 'admin' }] : []),
         ]}
         actions={
           <>

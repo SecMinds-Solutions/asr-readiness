@@ -95,5 +95,9 @@ A Tenant licensed for Microsoft Defender for Endpoint Plan 2, which provides the
 A person who signs in with an Entra account. The only data kept about a User is their Home tenant, username, first name, last name, email address and Contact consent, in their User record. A signed-in User can see their User record and delete it; once deleted, nothing about them remains.
 _Avoid_: customer, account, lead
 
+**SecMinds admin**:
+A SecMinds employee who may see every User record, but not change or delete one. Decided by an app role in SecMinds' own tenant, never by email address.
+_Avoid_: administrator, superuser
+
 **Contact consent**:
 A User's opt-in, with its date, to hear from SecMinds about its other products. Without it, a User is only emailed about the tool itself. A User can withdraw it, or give it later; each choice is stored with its date.

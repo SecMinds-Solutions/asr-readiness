@@ -12,7 +12,21 @@ describe('readSettings', () => {
       clientId: valid.ENTRA_CLIENT_ID,
       tableEndpoint: valid.USER_TABLE_ENDPOINT,
       tableName: 'users',
+      adminTenantId: null,
     });
+  });
+
+  it('reads the admin tenant when it is set', () => {
+    const adminTenantId = '33333333-3333-3333-3333-333333333333';
+    expect(readSettings({ ...valid, ADMIN_TENANT_ID: ` ${adminTenantId} ` }).adminTenantId).toBe(adminTenantId);
+  });
+
+  it('has no admin tenant when ADMIN_TENANT_ID is empty, so nobody is an admin', () => {
+    expect(readSettings({ ...valid, ADMIN_TENANT_ID: ' ' }).adminTenantId).toBeNull();
+  });
+
+  it('refuses an admin tenant that is not a GUID', () => {
+    expect(() => readSettings({ ...valid, ADMIN_TENANT_ID: 'secminds.nl' })).toThrow('ADMIN_TENANT_ID');
   });
 
   it.each(['ENTRA_CLIENT_ID', 'USER_TABLE_ENDPOINT', 'USER_TABLE_NAME'])('fails clearly when %s is missing', (name) => {
