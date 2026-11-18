@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App, type SignInSetup } from './App';
+import { ThemeContext } from './components/ThemeToggle';
+import { createThemeController } from './theme';
 import type { AuthClient } from './auth/msalAuthClient';
 import type { SignedInUser } from './auth/user';
 import { auditEventsFromRows, type AuditEvents } from './analysis/auditEvents';
@@ -238,6 +240,23 @@ describe('App: Contact consent', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 500');
     expect(screen.getByRole('checkbox', { name: /SecMinds may email me/i })).toBeChecked();
     expect(screen.queryByRole('heading', { name: 'Signed in' })).not.toBeInTheDocument();
+  });
+});
+
+describe('App: theme', () => {
+  it('shows the theme button on every page, also when sign-in is not configured', () => {
+    const query = { matches: false, addEventListener: () => {}, removeEventListener: () => {} };
+    const controller = createThemeController(document.createElement('html'), query, () => {
+      throw new Error('no storage');
+    });
+    render(
+      <ThemeContext.Provider value={controller}>
+        <App signIn={null} adminConsentResult={null} />
+      </ThemeContext.Provider>,
+    );
+    const nav = screen.getByRole('navigation');
+    fireEvent.click(within(nav).getByRole('button', { name: 'Switch to dark mode' }));
+    expect(within(nav).getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument();
   });
 });
 

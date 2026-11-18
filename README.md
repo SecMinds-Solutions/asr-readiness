@@ -28,7 +28,8 @@ ready-made Intune policy that you review and deploy yourself.
 - **Sign-in with Microsoft:** you sign in on Microsoft's own sign-in page. Your sign-in tokens
   are kept in the browser tab's session storage and are gone when you close the tab. This
   includes a refresh token (`offline_access`) that renews them while the tab is open. The app
-  has no client secret or certificate.
+  has no client secret or certificate. Your light or dark mode choice is the only thing the
+  app keeps in your browser's local storage.
 - **Stored about you, and nothing else:** your Home tenant ID, username, first name, last
   name, email address, and whether you agreed to hear from SecMinds about other products,
   with the date of that choice. All of it except the choice comes from your Microsoft

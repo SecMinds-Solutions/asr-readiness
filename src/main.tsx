@@ -4,7 +4,8 @@ import { App, type SignInSetup } from './App';
 import { readAuthConfig, type AuthConfig } from './auth/config';
 import { adminConsentUrl, readAdminConsentResult } from './auth/consent';
 import { createAuthClient } from './auth/msalAuthClient';
-import { applyTheme } from './theme';
+import { ThemeContext } from './components/ThemeToggle';
+import { createThemeController } from './theme';
 import { fetchAuditEvents } from './graph/auditEvents';
 import { fetchAuditPeriods } from './graph/auditPeriods';
 import { createGraphClient } from './graph/client';
@@ -12,7 +13,7 @@ import { fetchRuleOverview } from './graph/ruleOverview';
 import { createReadinessCheck } from './onboarding/readiness';
 import { createUserRecordClient } from './user-record/client';
 
-applyTheme(document.documentElement, window.matchMedia('(prefers-color-scheme: dark)'));
+const theme = createThemeController(document.documentElement, window.matchMedia('(prefers-color-scheme: dark)'), () => window.localStorage);
 
 // The admin consent page returns here with its outcome in the query string. Read it, then
 // remove it from the address bar so a reload does not show it again.
@@ -41,6 +42,8 @@ if (!container) throw new Error('Missing #root element');
 
 createRoot(container).render(
   <StrictMode>
-    <App signIn={signIn} adminConsentResult={adminConsentResult} />
+    <ThemeContext.Provider value={theme}>
+      <App signIn={signIn} adminConsentResult={adminConsentResult} />
+    </ThemeContext.Provider>
   </StrictMode>,
 );

@@ -21,6 +21,7 @@ import { AuditEventsFailedAlert, AuditEventsView, LoadingAuditEvents } from './c
 import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
 import { SuggestedPolicyView } from './components/SuggestedPolicy';
 import { LoadingVerdicts, VerdictsFailedAlert, VerdictsView } from './components/Verdicts';
+import { ThemeToggle } from './components/ThemeToggle';
 import { NoUserRecordNotice, PrivacyNotice, UserRecordCard, UserRecordDeletedCard } from './components/Privacy';
 import type { ReadinessCheck } from './onboarding/readiness';
 import { HOME_HREF, MAIN_ID, PRIVACY_HREF, useRoute, type Route } from './route';
@@ -309,7 +310,12 @@ function Page({ actions, route, children }: { actions?: ReactNode; route: Route;
           { label: 'Home', href: HOME_HREF, active: route === 'home' },
           { label: 'Privacy notice', href: PRIVACY_HREF, active: route === 'privacy' },
         ]}
-        actions={actions}
+        actions={
+          <>
+            <ThemeToggle />
+            {actions}
+          </>
+        }
       />
       <main className="app-main" id={MAIN_ID} tabIndex={-1}>
         <Badge tone="info">In development</Badge>
