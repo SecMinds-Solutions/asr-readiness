@@ -39,7 +39,7 @@ export function PrivacyNotice() {
 
       <h4 className="h4">Who can see it</h4>
       <p className="app-text">
-        A small number of SecMinds admins can see every User record. They cannot change or delete your record. Nobody else at SecMinds has access through
+        A small number of SecMinds admins can see every User record, and can list only the Users who gave Contact consent. They cannot change or delete your record. Nobody else at SecMinds has access through
         the app.
       </p>
 

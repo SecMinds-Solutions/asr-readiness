@@ -1,9 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { SecMinds } from '../design-system';
 import type { UserRecord, UserRecordClient } from '../user-record/client';
+import { userRecordCounts, withContactConsent } from '../user-record/summary';
 import { useLoad } from '../useLoad';
 
-const { Alert, Badge, Button, Card, EmptyState, Spinner, Table } = SecMinds;
+const { Alert, Badge, Button, Card, Checkbox, EmptyState, Spinner, Stat, Table } = SecMinds;
 
 /** The date of a Contact consent choice as yyyy-mm-dd, the same for every admin. */
 const dateOf = (iso: string) => iso.slice(0, 10);
@@ -53,29 +54,68 @@ export function AdminPage({ client }: { client: UserRecordClient }) {
   }
 }
 
-function UserRecordsCard({ users }: { users: UserRecord[] }) {
+/** How many Users there are, how many gave Contact consent, and how many per Home tenant. */
+function UserRecordCountsCard({ users }: { users: UserRecord[] }) {
+  const counts = useMemo(() => userRecordCounts(users), [users]);
   return (
-    <Card title="User records">
-      <p className="app-text">Every stored User record. SecMinds admins can see them here, but not change or delete them.</p>
-      {users.length === 0 ? (
-        <EmptyState icon="users" title="No User records yet">
-          Nobody has signed in and made the Contact consent choice yet.
-        </EmptyState>
-      ) : (
+    <Card title="Users">
+      <div className="app-stats">
+        <Stat value={counts.total} label="Users" />
+        <Stat value={counts.withContactConsent} label="With Contact consent" />
+        <Stat value={counts.perHomeTenant.length} label="Home tenants" />
+      </div>
+      {counts.perHomeTenant.length > 0 && (
         <Table
-          caption="Every stored User record"
+          caption="Users per Home tenant"
           columns={[
-            { key: 'homeTenantId', label: 'Home tenant ID', render: (row: UserRecord) => <span className="code app-break">{row.homeTenantId}</span> },
-            { key: 'username', label: 'Username', render: (row: UserRecord) => <span className="app-break">{row.username}</span> },
-            { key: 'firstName', label: 'First name', render: (row: UserRecord) => orDash(row.firstName) },
-            { key: 'lastName', label: 'Last name', render: (row: UserRecord) => orDash(row.lastName) },
-            { key: 'email', label: 'Email address', render: (row: UserRecord) => <span className="app-break">{orDash(row.email)}</span> },
-            { key: 'contactConsent', label: 'Contact consent', render: (row: UserRecord) => <ContactConsentCell user={row} /> },
+            { key: 'homeTenantId', label: 'Home tenant ID', render: (row: { homeTenantId: string }) => <span className="code app-break">{row.homeTenantId}</span> },
+            { key: 'users', label: 'Users', align: 'right' },
           ]}
-          rows={users}
+          rows={counts.perHomeTenant}
         />
       )}
     </Card>
+  );
+}
+
+/** The User records, optionally only those with Contact consent, with their counts above. */
+function UserRecordsCard({ users }: { users: UserRecord[] }) {
+  const [onlyWithConsent, setOnlyWithConsent] = useState(false);
+  const shown = useMemo(() => (onlyWithConsent ? withContactConsent(users) : users), [users, onlyWithConsent]);
+  return (
+    <>
+      <UserRecordCountsCard users={users} />
+      <Card title="User records">
+        <p className="app-text">Every stored User record. SecMinds admins can see them here, but not change or delete them.</p>
+        <Checkbox
+          label="Only Users with Contact consent"
+          checked={onlyWithConsent}
+          onChange={(event) => setOnlyWithConsent(event.target.checked)}
+        />
+        {users.length === 0 ? (
+          <EmptyState icon="users" title="No User records yet">
+            Nobody has signed in and made the Contact consent choice yet.
+          </EmptyState>
+        ) : shown.length === 0 ? (
+          <EmptyState icon="filter" title="No Users with Contact consent">
+            No stored User has given Contact consent.
+          </EmptyState>
+        ) : (
+          <Table
+            caption="Every stored User record"
+            columns={[
+              { key: 'homeTenantId', label: 'Home tenant ID', render: (row: UserRecord) => <span className="code app-break">{row.homeTenantId}</span> },
+              { key: 'username', label: 'Username', render: (row: UserRecord) => <span className="app-break">{row.username}</span> },
+              { key: 'firstName', label: 'First name', render: (row: UserRecord) => orDash(row.firstName) },
+              { key: 'lastName', label: 'Last name', render: (row: UserRecord) => orDash(row.lastName) },
+              { key: 'email', label: 'Email address', render: (row: UserRecord) => <span className="app-break">{orDash(row.email)}</span> },
+              { key: 'contactConsent', label: 'Contact consent', render: (row: UserRecord) => <ContactConsentCell user={row} /> },
+            ]}
+            rows={shown}
+          />
+        )}
+      </Card>
+    </>
   );
 }
 

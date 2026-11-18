@@ -31,6 +31,7 @@ All notable changes to this project are documented in this file.
 - A button in the navbar switches between light and dark mode. Without a choice the app follows the system setting; the choice is remembered in the browser's local storage, and only for the visit when the browser does not allow that.
 - The Analysis is shown in three tabs: Verdicts (with the Suggested policy), ASR rules and Audit events. Each part is still read once; switching tabs never reads Microsoft Graph again.
 - Admin page for SecMinds admins: a list of every User record, at `#admin`, with the navbar link shown only to admins. The API's read-only `GET /api/users` returns the records only to a User with the app role Admin assigned in SecMinds' own tenant; everyone else gets "not allowed". The privacy notice says who can see the records. ADR-0009 records the decision.
+- Admin page: counts of all Users, Users with Contact consent and Users per Home tenant, and a filter that shows only Users with Contact consent. Filtering and counting happen in the browser on the records already read.
 - `.env.example` with `VITE_ENTRA_CLIENT_ID`, the client ID of the app registration to sign in with.
 
 ### Changed

@@ -30,8 +30,8 @@ close it. ASR Readiness uses no analytics or trackers.
 
 ## Who can see it
 
-A small number of SecMinds admins can see every User record. They cannot change or delete
-your record. Nobody else at SecMinds has access through the app.
+A small number of SecMinds admins can see every User record, and can list only the Users who
+gave Contact consent. They cannot change or delete your record. Nobody else at SecMinds has access through the app.
 
 ## Where and for how long
 

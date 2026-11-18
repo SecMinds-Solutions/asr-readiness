@@ -38,6 +38,13 @@ body,
   padding-top: var(--space-4);
 }
 
+.app-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
 .app-title {
   margin: 0;
   color: var(--accent);

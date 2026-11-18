@@ -289,6 +289,7 @@ describe('App: privacy notice and the User record', () => {
     render(<App signIn={setup(fakeClient(async () => null))} adminConsentResult={null} />);
     expect(await screen.findByRole('heading', { name: 'Privacy notice' })).toBeInTheDocument();
     expect(screen.getByText(/West Europe region, in the European Union/)).toBeInTheDocument();
+    expect(screen.getByText(/SecMinds admins can see every User record, and can list only the Users who gave Contact consent/)).toBeInTheDocument();
     expect(screen.getByText(/withdraw your Contact consent/)).toBeInTheDocument();
     expect(screen.getByText(/removed from storage at once/)).toBeInTheDocument();
     expect(screen.getByText('Sign in to see, change or delete your User record.')).toBeInTheDocument();
