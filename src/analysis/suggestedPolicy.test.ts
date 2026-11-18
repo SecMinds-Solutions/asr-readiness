@@ -44,9 +44,9 @@ const PREFIX = 'device_vendor_msft_policy_config_defender_attacksurfacereduction
 describe('suggestedPolicy', () => {
   it('pins the settings catalog policy for a fixture Analysis', () => {
     expect(suggestedPolicy(analysis, created)?.policy).toEqual({
-      name: 'ASR Readiness suggested policy 2026-11-18',
+      name: 'ASR Compas suggested policy 2026-11-18',
       description:
-        'Suggested by ASR Readiness on 2026-11-18. Sets the ASR rules that were Ready to block or Ready with exclusions to Block, with their Suggested exclusions. Rules that were not ready are not in this policy.',
+        'Suggested by ASR Compas on 2026-11-18. Sets the ASR rules that were Ready to block or Ready with exclusions to Block, with their Suggested exclusions. Rules that were not ready are not in this policy.',
       platforms: 'windows10',
       technologies: 'mdm',
       roleScopeTagIds: ['0'],
@@ -173,6 +173,6 @@ describe('suggestedPolicy', () => {
 
   it('names the policy after the local date it was made', () => {
     const lateEvening = new Date(2026, 10, 18, 23, 30);
-    expect(suggestedPolicy([verdict(WMI, 'Ready to block')], lateEvening)?.policy.name).toBe('ASR Readiness suggested policy 2026-11-18');
+    expect(suggestedPolicy([verdict(WMI, 'Ready to block')], lateEvening)?.policy.name).toBe('ASR Compas suggested policy 2026-11-18');
   });
 });

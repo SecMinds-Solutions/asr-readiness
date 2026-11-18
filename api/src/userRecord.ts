@@ -1,4 +1,4 @@
-// The User record: the only data ASR Readiness stores about a User, and nothing else.
+// The User record: the only data ASR Compas stores about a User, and nothing else.
 
 /** Who the User is, as their access token says. */
 export interface UserIdentity {

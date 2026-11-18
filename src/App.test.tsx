@@ -95,7 +95,7 @@ const consentError = Object.assign(new Error('AADSTS65004: User declined to cons
 describe('App', () => {
   it('shows the product name, the SecMinds logo and the trust promise', async () => {
     render(<App signIn={setup(fakeClient(async () => null))} adminConsentResult={null} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'ASR Readiness' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'ASR Compas' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'SecMinds Solutions' })).toBeInTheDocument();
     expect(screen.getByText(/never leaves your browser/i)).toBeInTheDocument();
     await screen.findAllByRole('button', { name: 'Sign in' });

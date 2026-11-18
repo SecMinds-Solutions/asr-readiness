@@ -28,7 +28,7 @@ export const GRAPH_SCOPES: readonly string[] = ['ThreatHunting.Read.All', 'Devic
 
 /**
  * The scope the app registration exposes for the app's own API, which stores the User record.
- * It is a scope of ASR Readiness itself, not of Microsoft Graph (see ADR-0002).
+ * It is a scope of ASR Compas itself, not of Microsoft Graph (see ADR-0002).
  */
 export function userRecordScope(clientId: string): string {
   return `api://${clientId}/UserRecord.ReadWrite`;

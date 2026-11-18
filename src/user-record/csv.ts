@@ -32,4 +32,4 @@ export function userRecordsCsv(users: readonly UserRecord[]): string {
 }
 
 /** The file name, with the admin's local date. */
-export const userRecordsCsvFileName = (date: Date): string => `asr-readiness-users-${localDate(date)}.csv`;
+export const userRecordsCsvFileName = (date: Date): string => `asr-compas-users-${localDate(date)}.csv`;

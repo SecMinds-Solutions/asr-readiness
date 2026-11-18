@@ -33,7 +33,7 @@ export function SignInCard({
       }
     >
       <p className="app-text">
-        Sign in with the work or school account you use for Microsoft Defender and Intune. ASR Readiness
+        Sign in with the work or school account you use for Microsoft Defender and Intune. ASR Compas
         reads with your own permissions and changes nothing in your tenant.
       </p>
       <p className="app-text">
@@ -66,7 +66,7 @@ export function ConsentRequiredAlert({ adminConsentUrl }: { adminConsentUrl: str
   return (
     <Alert tone="warning" title="Admin consent needed">
       <p className="app-text">
-        Your tenant has not approved ASR Readiness yet. An admin of your tenant who can grant
+        Your tenant has not approved ASR Compas yet. An admin of your tenant who can grant
         tenant-wide consent for applications has to open the admin consent page once. Send them this link, or
         if you are that admin, <TextLink href={adminConsentUrl}>grant admin consent</TextLink> yourself.
       </p>
@@ -90,7 +90,7 @@ export function AdminConsentResultAlert({ result }: { result: AdminConsentResult
   if (result.outcome === 'granted') {
     return (
       <Alert tone="success" title="Admin consent granted">
-        Users in your tenant can now sign in to ASR Readiness.
+        Users in your tenant can now sign in to ASR Compas.
       </Alert>
     );
   }
@@ -104,7 +104,7 @@ export function AdminConsentResultAlert({ result }: { result: AdminConsentResult
 export function SignInNotConfiguredAlert() {
   return (
     <Alert tone="info" title="Sign-in is not configured">
-      This build of ASR Readiness has no app registration client ID, so sign-in is not available. Set
+      This build of ASR Compas has no app registration client ID, so sign-in is not available. Set
       VITE_ENTRA_CLIENT_ID when building; see .env.example.
     </Alert>
   );

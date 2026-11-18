@@ -1,4 +1,4 @@
-# ASR Readiness
+# ASR Compas
 
 A free, open-source community tool that helps organisations move Microsoft Defender Attack Surface Reduction rules from audit mode to block mode safely, by judging each rule's readiness from its audit events.
 

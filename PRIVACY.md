@@ -1,11 +1,11 @@
 # Privacy notice
 
-This is the privacy notice of ASR Readiness, a free community tool by SecMinds Solutions. The
+This is the privacy notice of ASR Compas, a free community tool by SecMinds Solutions. The
 app shows the same notice under **Privacy notice** in its menu, on every page.
 
 ## What is stored about you
 
-When you sign in for the first time, ASR Readiness stores a User record with exactly these
+When you sign in for the first time, ASR Compas stores a User record with exactly these
 fields, and nothing else:
 
 - your Home tenant ID: the ID of the Entra tenant your account belongs to;
@@ -21,11 +21,11 @@ type. You make the Contact consent choice after your first sign-in, with the box
 An Analysis runs in your browser. Your Tenant's security data, such as Audit events, paths,
 device names, policies and Verdicts, is never sent to SecMinds and never stored, and neither is
 which Tenants you analyse. Your sign-in tokens stay in your browser tab and are gone when you
-close it. ASR Readiness uses no analytics or trackers.
+close it. ASR Compas uses no analytics or trackers.
 
 ## Why
 
-- To know who uses ASR Readiness, and to email you about ASR Readiness itself.
+- To know who uses ASR Compas, and to email you about ASR Compas itself.
 - Only with your Contact consent: to email you about SecMinds' other products.
 
 ## Who can see it

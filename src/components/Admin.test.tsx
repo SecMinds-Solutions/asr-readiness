@@ -92,7 +92,7 @@ describe('AdminPage: CSV export', () => {
 
   it('saves every shown User as UTF-8 CSV with a dated file name', async () => {
     const [fileName, contents, mediaType] = await download(users);
-    expect(fileName).toMatch(/^asr-readiness-users-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(fileName).toMatch(/^asr-compas-users-\d{4}-\d{2}-\d{2}\.csv$/);
     expect(mediaType).toBe('text/csv;charset=utf-8');
     expect(contents.startsWith('\uFEFFHome tenant ID,')).toBe(true);
     expect(contents.trimEnd().split('\r\n')).toHaveLength(4);

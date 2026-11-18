@@ -6,13 +6,13 @@ import { HOME_HREF } from '../route';
 
 const { Alert, Badge, Button, Card, Dialog, TextLink } = SecMinds;
 
-/** What ASR Readiness stores about a User, why, where, and how they see, change or delete it. */
+/** What ASR Compas stores about a User, why, where, and how they see, change or delete it. */
 export function PrivacyNotice() {
   return (
     <Card title="Privacy notice">
       <h4 className="h4">What is stored about you</h4>
       <p className="app-text">
-        When you sign in for the first time, ASR Readiness stores a User record with exactly these fields, and nothing else:
+        When you sign in for the first time, ASR Compas stores a User record with exactly these fields, and nothing else:
       </p>
       <ul className="app-list">
         <li>your Home tenant ID: the ID of the Entra tenant your account belongs to;</li>
@@ -28,12 +28,12 @@ export function PrivacyNotice() {
       <p className="app-text">
         An Analysis runs in your browser. Your Tenant&apos;s security data, such as Audit events, paths, device names, policies
         and Verdicts, is never sent to SecMinds and never stored, and neither is which Tenants you analyse. Your sign-in tokens
-        stay in your browser tab and are gone when you close it. ASR Readiness uses no analytics or trackers.
+        stay in your browser tab and are gone when you close it. ASR Compas uses no analytics or trackers.
       </p>
 
       <h4 className="h4">Why</h4>
       <ul className="app-list">
-        <li>To know who uses ASR Readiness, and to email you about ASR Readiness itself.</li>
+        <li>To know who uses ASR Compas, and to email you about ASR Compas itself.</li>
         <li>Only with your Contact consent: to email you about SecMinds&apos; other products.</li>
       </ul>
 
@@ -56,7 +56,7 @@ export function PrivacyNotice() {
         <li>withdraw your Contact consent, or give it later; your new choice is stored with its date;</li>
         <li>delete your User record; it is removed from storage at once, and nothing about you remains.</li>
       </ul>
-      <TextLink href={HOME_HREF}>Back to ASR Readiness</TextLink>
+      <TextLink href={HOME_HREF}>Back to ASR Compas</TextLink>
     </Card>
   );
 }
@@ -121,7 +121,7 @@ export function UserRecordCard({
   };
   return (
     <Card title="Your User record">
-      <p className="app-text">This is everything ASR Readiness stores about you.</p>
+      <p className="app-text">This is everything ASR Compas stores about you.</p>
       <dl className="app-details">
         <dt>Home tenant ID</dt>
         <dd>{record.homeTenantId}</dd>

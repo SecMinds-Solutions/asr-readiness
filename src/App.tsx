@@ -342,7 +342,7 @@ function Page({ actions, route, admin = false, children }: { actions?: ReactNode
       />
       <main className="app-main" id={MAIN_ID} tabIndex={-1}>
         <Badge tone="info">In development</Badge>
-        <h1 className="h1 app-title">ASR Readiness</h1>
+        <h1 className="h1 app-title">ASR Compas</h1>
         <p className="body-lg app-lead">
           Move Microsoft Defender Attack Surface Reduction rules from audit to block mode, safely. Get a verdict
           for every ASR rule based on its audit events, and download a suggested Intune policy to review and

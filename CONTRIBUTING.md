@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in ASR Readiness.
+Thanks for your interest in ASR Compas.
 
 This repository is published from SecMinds' development repository, so pull requests
 here cannot be merged and are closed automatically. Contributions are very welcome as

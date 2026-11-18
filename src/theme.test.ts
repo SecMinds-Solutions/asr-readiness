@@ -81,6 +81,12 @@ describe('createThemeController', () => {
     expect(root.dataset.theme).toBe('light');
   });
 
+  it('keeps the storage key asr-readiness-theme, so a choice from before the rename to ASR Compas still applies', () => {
+    const root = document.createElement('html');
+    createThemeController(root, fakeQuery(true), () => memoryStorage({ 'asr-readiness-theme': 'light' }));
+    expect(root.dataset.theme).toBe('light');
+  });
+
   it('ignores a stored value that is not a theme', () => {
     const root = document.createElement('html');
     createThemeController(root, fakeQuery(true), () => memoryStorage({ [THEME_STORAGE_KEY]: 'purple' }));
