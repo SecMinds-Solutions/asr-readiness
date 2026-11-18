@@ -17,6 +17,7 @@ import type { AuditEvents } from './analysis/auditEvents';
 import type { AuditPeriods } from './analysis/auditPeriods';
 import { coverageFailed, type RuleOverview } from './analysis/ruleOverview';
 import { verdictsFor } from './analysis/verdicts';
+import { AccessibleTabs } from './components/AccessibleTabs';
 import { AuditEventsFailedAlert, AuditEventsView, LoadingAuditEvents } from './components/AuditEvents';
 import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
 import { SuggestedPolicyView } from './components/SuggestedPolicy';
@@ -223,17 +224,24 @@ function OnboardingCheck({ checkReadiness, loaders }: { checkReadiness: Readines
 
 type Loaded<T> = { state: LoadState<T>; reload: () => void };
 
-/** Each part of the Analysis is read once; the Verdicts combine them, the other sections show them. */
+/**
+ * Each part of the Analysis is read once, here, above the tabs: switching tabs only changes what is
+ * shown and never reads Graph again. The Verdicts combine the parts; the other tabs show them.
+ */
 function AnalysisSections({ loaders }: { loaders: AnalysisLoaders }) {
   const overview = useLoad(loaders.loadRuleOverview);
   const events = useLoad(loaders.loadAuditEvents);
   const periods = useLoad(loaders.loadAuditPeriods);
   return (
-    <>
-      <VerdictsSection overview={overview} events={events} periods={periods} />
-      <RuleOverviewSection {...overview} />
-      <AuditEventsSection {...events} />
-    </>
+    <AccessibleTabs
+      id="analysis"
+      label="Analysis"
+      tabs={[
+        { value: 'verdicts', label: 'Verdicts', content: <VerdictsSection overview={overview} events={events} periods={periods} /> },
+        { value: 'rules', label: 'ASR rules', content: <RuleOverviewSection {...overview} /> },
+        { value: 'events', label: 'Audit events', content: <AuditEventsSection {...events} /> },
+      ]}
+    />
   );
 }
 

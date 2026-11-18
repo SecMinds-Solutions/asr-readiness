@@ -80,6 +80,9 @@ function setup(
 const alertWith = async (title: string) =>
   (await screen.findAllByRole('alert')).find((alert) => alert.textContent?.includes(title)) as HTMLElement;
 
+/** Opens one of the Analysis tabs once the onboarding check has passed. */
+const openTab = async (name: string) => fireEvent.click(await screen.findByRole('tab', { name }));
+
 const findNavbarSignIn = async () => within(screen.getByRole('navigation')).findByRole('button', { name: 'Sign in' });
 
 const consentError = Object.assign(new Error('AADSTS65004: User declined to consent.'), {
@@ -454,6 +457,7 @@ describe('App: ASR rules', () => {
   it('reads the ASR rules once the Tenant is ready, and lists them', async () => {
     const signIn = setup(signedIn());
     render(<App signIn={signIn} adminConsentResult={null} />);
+    await openTab('ASR rules');
     expect(await screen.findByRole('heading', { name: 'ASR rules' })).toBeInTheDocument();
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
     expect(within(screen.getByRole('table', { name: /Rule mode from the Tenant/ })).getAllByText('0 of 12 devices')).toHaveLength(19);
@@ -468,12 +472,14 @@ describe('App: ASR rules', () => {
 
   it('says it is reading the ASR rules', async () => {
     render(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
+    await openTab('ASR rules');
     expect(await screen.findByText('Reading the Intune policies and the Rule modes devices report…')).toBeInTheDocument();
   });
 
   it('shows why the ASR rules could not be read and lets the User try again', async () => {
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => Promise.reject(new Error('Microsoft Graph answered HTTP 503.')));
     render(<App signIn={signIn} adminConsentResult={null} />);
+    await openTab('ASR rules');
     const alert = await alertWith('The ASR rules could not be read');
     expect(alert).toHaveTextContent('HTTP 503');
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
@@ -487,6 +493,7 @@ describe('App: Audit events', () => {
   it('reads the Audit events once the Tenant is ready, and shows them', async () => {
     const signIn = setup(signedIn());
     render(<App signIn={signIn} adminConsentResult={null} />);
+    await openTab('Audit events');
     expect(await screen.findByRole('heading', { name: 'Audit events' })).toBeInTheDocument();
     expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
     expect(screen.getByText('No Audit events in the last 30 days')).toBeInTheDocument();
@@ -501,6 +508,7 @@ describe('App: Audit events', () => {
 
   it('says it is counting the Audit events', async () => {
     render(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
+    await openTab('Audit events');
     expect(await screen.findByText('Counting Audit events in advanced hunting…')).toBeInTheDocument();
   });
 
@@ -508,11 +516,53 @@ describe('App: Audit events', () => {
     const throttled = new Error('Advanced hunting is throttled: wait a few minutes and try again.');
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, async () => Promise.reject(throttled));
     render(<App signIn={signIn} adminConsentResult={null} />);
+    await openTab('Audit events');
     const alert = await alertWith('The Audit events could not be read');
     expect(alert).toHaveTextContent('The Audit events could not be read');
     expect(alert).toHaveTextContent('Advanced hunting is throttled');
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(signIn.loadAuditEvents).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('App: Analysis tabs', () => {
+  const signedIn = () => fakeClient(async () => ada);
+
+  it('shows the Verdicts tab first, with the Suggested policy in it', async () => {
+    render(<App signIn={setup(signedIn())} adminConsentResult={null} />);
+    expect(await screen.findByRole('tab', { name: 'Verdicts' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'ASR rules' })).toHaveAttribute('aria-selected', 'false');
+    expect(await screen.findByRole('heading', { name: 'Verdicts' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Suggested policy' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Audit events' })).toBeNull();
+  });
+
+  it('switches tabs without reading Graph again', async () => {
+    const signIn = setup(signedIn());
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    await screen.findByRole('heading', { name: 'Verdicts' });
+    await openTab('ASR rules');
+    expect(await screen.findByRole('heading', { name: 'ASR rules' })).toBeInTheDocument();
+    await openTab('Audit events');
+    expect(await screen.findByRole('heading', { name: 'Audit events' })).toBeInTheDocument();
+    await openTab('Verdicts');
+    expect(await screen.findByRole('heading', { name: 'Verdicts' })).toBeInTheDocument();
+    expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
+    expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
+    expect(signIn.loadAuditPeriods).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a part that is still loading when the User switches away and back', async () => {
+    let finish: (events: AuditEvents) => void = () => {};
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, () => new Promise((resolve) => (finish = resolve)));
+    render(<App signIn={signIn} adminConsentResult={null} />);
+    await openTab('Audit events');
+    expect(await screen.findByText('Counting Audit events in advanced hunting…')).toBeInTheDocument();
+    await openTab('Verdicts');
+    finish(auditEventsFromRows([], []));
+    await openTab('Audit events');
+    expect(await screen.findByText('No Audit events in the last 30 days')).toBeInTheDocument();
+    expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
   });
 });
 
