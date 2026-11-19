@@ -42,4 +42,34 @@ describe('VerdictsView', () => {
     render(<VerdictsView assessments={assessments} />);
     expect(screen.getByText(/speaks only for the devices in its Coverage/)).toBeInTheDocument();
   });
+
+  it('offers a filter per Verdict with its number of rules, as links that keep the filter in the address', () => {
+    render(<VerdictsView assessments={assessments} />);
+    const filters = screen.getByRole('navigation', { name: 'Filter by Verdict' });
+    const all = within(filters).getByRole('link', { name: 'All (3)' });
+    expect(all).toHaveAttribute('aria-current', 'true');
+    expect(all).toHaveAttribute('href', 'https://app.asrcompass.cloud/verdicts');
+    expect(within(filters).getByRole('link', { name: 'Ready to block (1)' })).toHaveAttribute(
+      'href',
+      'https://app.asrcompass.cloud/verdicts?verdict=ready-to-block',
+    );
+    expect(within(filters).getByRole('link', { name: 'Already blocking (1)' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('shows only the rules with the Verdict of the filter, and marks that filter as current', () => {
+    render(<VerdictsView assessments={assessments} filter="not-ready" />);
+    expect(screen.getByRole('link', { name: 'Not ready (1)' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('link', { name: 'All (3)' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('table', { name: /: Not ready$/ })).toBeInTheDocument();
+    expect(rowOf(second.name)).toBeInTheDocument();
+    expect(screen.queryByRole('cell', { name: first.name })).toBeNull();
+    expect(screen.queryByRole('cell', { name: third.name })).toBeNull();
+  });
+
+  it('says so when no rule has the Verdict of the filter, and offers all rules', () => {
+    render(<VerdictsView assessments={assessments} filter="no-evidence" />);
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.getByText('No ASR rules in No evidence')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Show all ASR rules' })).toHaveAttribute('href', 'https://app.asrcompass.cloud/verdicts');
+  });
 });

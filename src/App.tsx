@@ -13,7 +13,9 @@ import {
   NotSupportedCard,
 } from './components/Onboarding';
 import type { AuditEvents } from './analysis/auditEvents';
-import type { RuleOverview } from './analysis/ruleOverview';
+import { coverageFailed, type RuleOverview } from './analysis/ruleOverview';
+import { readVerdictFilter } from './analysis/verdictSummary';
+import { OverviewView } from './components/Overview';
 import { AuditEventsFailedAlert, AuditEventsView, LoadingAuditEvents } from './components/AuditEvents';
 import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
 import { SuggestedPolicyView } from './components/SuggestedPolicy';
@@ -45,7 +47,7 @@ import type { UserRecordClient } from './user-record/client';
 import { useUserRecord } from './user-record/useUserRecord';
 import './app.css';
 
-const { Button, Card, TextLink } = SecMinds;
+const { Button, TextLink } = SecMinds;
 
 /** What the app needs to sign Users in; null when this build has no app registration. */
 export interface SignInSetup extends AnalysisLoaders {
@@ -335,33 +337,38 @@ function AnalysisPage({ page, analysis }: { page: AppPage; analysis: Analysis })
     case 'events':
       return <AuditEventsSection {...analysis.events} />;
     default:
-      return <OverviewSection />;
+      return <OverviewSection analysis={analysis} />;
   }
 }
 
-/** Until the Overview has its own figures: where to start. */
-function OverviewSection() {
-  const { href } = useNavigation();
-  return (
-    <Card title="Start with the Verdicts">
-      <p className="app-text">
-        Each ASR rule gets a Verdict from its Rule mode, Audit period and Audit events.{' '}
-        <TextLink href={href({ site: 'app', page: 'verdicts' })}>See the Verdicts</TextLink>, then download the{' '}
-        <TextLink href={href({ site: 'app', page: 'policy' })}>Suggested policy</TextLink> for the rules that are ready.
-      </p>
-    </Card>
-  );
+/** The Analysis at a glance; it needs the Verdicts, so it waits for every part. */
+function OverviewSection({ analysis }: { analysis: Analysis }) {
+  const verdicts = useAssessments(analysis);
+  const { overview } = analysis;
+  switch (verdicts.status) {
+    case 'loading':
+      return <LoadingVerdicts />;
+    case 'failed':
+      return <VerdictsFailedAlert message={verdicts.message} onRetry={verdicts.retry} />;
+    case 'ready': {
+      // Verdicts are ready only when Coverage was read, so the reporting devices are known.
+      const coverage = overview.state.status === 'loaded' ? overview.state.value.coverage : null;
+      const devices = coverage && !coverageFailed(coverage) ? coverage.devices : 0;
+      return <OverviewView assessments={verdicts.assessments} devices={devices} />;
+    }
+  }
 }
 
 function VerdictsSection({ analysis }: { analysis: Analysis }) {
   const verdicts = useAssessments(analysis);
+  const { search } = useNavigation();
   switch (verdicts.status) {
     case 'loading':
       return <LoadingVerdicts />;
     case 'failed':
       return <VerdictsFailedAlert message={verdicts.message} onRetry={verdicts.retry} />;
     case 'ready':
-      return <VerdictsView assessments={verdicts.assessments} />;
+      return <VerdictsView assessments={verdicts.assessments} filter={readVerdictFilter(search)} />;
   }
 }
 

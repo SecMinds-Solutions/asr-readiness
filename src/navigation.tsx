@@ -1,17 +1,19 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_ORIGINS, hostsFor, MAIN_ID, resolve, urlFor, type Origins, type Place } from './places';
 
-/** The page shown, and where links to every page point from here. */
+/** The page shown, its query string, and where links to every page point from here. */
 export interface Navigation {
   place: Place;
+  /** The query string of the address, with its `?`, or empty: a page's own state, such as a filter. */
+  search: string;
   href: (place: Place) => string;
 }
 
 const NavigationContext = createContext<Navigation | null>(null);
 
-function navigationAt(origin: string, origins: Origins, place: Place): Navigation {
+function navigationAt(origin: string, origins: Origins, place: Place, search = ''): Navigation {
   const hosts = hostsFor(origins, origin);
-  return { place, href: (target) => urlFor(target, hosts) };
+  return { place, search, href: (target) => urlFor(target, hosts) };
 }
 
 /**
@@ -38,12 +40,14 @@ function leftToBrowser(event: MouseEvent, link: HTMLAnchorElement): boolean {
 
 /**
  * Keeps the page in step with the address bar. Links to another page of the same half (website or
- * app) change the page without reloading it, so the app does not sign in and read everything again;
- * links to the other half, to sections or to other sites are left to the browser. On a page
- * change, focus moves to the main content, so keyboard and screen reader users start at the new page.
+ * app), or to the same page with another query string, change the page without reloading it, so the
+ * app does not sign in and read everything again; links to the other half, to sections or to other
+ * sites are left to the browser. On a page change, focus moves to the main content, so keyboard and
+ * screen reader users start at the new page; a change of query string alone leaves focus where it is.
  */
 export function NavigationProvider({ origins, initial, children }: { origins: Origins; initial: Place; children: ReactNode }) {
-  const [place, setPlace] = useState<Place>(initial);
+  const [shown, setShown] = useState<{ place: Place; search: string }>(() => ({ place: initial, search: window.location.search }));
+  const { place, search } = shown;
   // A provider serves one half for its whole life: going to the other half loads the page.
   const site = initial.site;
   const shownPage = useRef(initial.page);
@@ -53,8 +57,8 @@ export function NavigationProvider({ origins, initial, children }: { origins: Or
     const show = (url: URL): boolean => {
       const resolution = resolve(url, origins);
       if (resolution.kind !== 'show' || resolution.place.site !== site) return false;
-      const next = resolution.place;
-      setPlace((shown) => (shown.page === next.page ? shown : next));
+      const next = { place: resolution.place, search: url.search };
+      setShown((current) => (current.place.page === next.place.page && current.search === next.search ? current : next));
       return true;
     };
 
@@ -68,7 +72,8 @@ export function NavigationProvider({ origins, initial, children }: { origins: Or
       const resolution = resolve(url, origins);
       if (resolution.kind !== 'show' || resolution.place.site !== site) return;
       event.preventDefault();
-      window.history.pushState(null, '', url.href);
+      // A link to the address already shown, such as the active filter, adds no history entry.
+      if (url.href !== window.location.href) window.history.pushState(null, '', url.href);
       show(url);
     };
 
@@ -91,6 +96,6 @@ export function NavigationProvider({ origins, initial, children }: { origins: Or
     document.getElementById(MAIN_ID)?.focus();
   }, [place]);
 
-  const value = useMemo(() => navigationAt(window.location.origin, origins, place), [origins, place]);
+  const value = useMemo(() => navigationAt(window.location.origin, origins, place, search), [origins, place, search]);
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;
 }

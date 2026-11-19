@@ -930,4 +930,35 @@ describe('App: Verdicts', () => {
     await waitFor(() => expect(signIn.loadAuditPeriods).toHaveBeenCalledTimes(2));
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
   });
+
+  it('opens the Verdicts filtered to one Verdict from its tile on the Overview, with counts that match the table', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => ({
+      [ADOBE]: { devices: 12, shortestDays: 20 },
+    }));
+    renderApp(<App signIn={signIn} adminConsentResult={null} />);
+    const tile = await screen.findByRole('link', { name: /^1 Ready to block/ });
+    expect(tile).toHaveTextContent('Coverage 12 of 12 devices');
+    expect(screen.getByRole('link', { name: /^12 Devices report their Rule modes/ })).toBeInTheDocument();
+    fireEvent.click(tile);
+    expect(await findPageHeading('Verdicts')).toBeInTheDocument();
+    expect(window.location.search).toBe('?verdict=ready-to-block');
+    const table = await screen.findByRole('table', { name: /Ready to block$/ });
+    expect(within(table).getAllByRole('row')).toHaveLength(2);
+    expect(within(table).getByRole('cell', { name: 'Block Adobe Reader from creating child processes' })).toBeInTheDocument();
+  });
+
+  it('keeps the filter on reload and follows Back to all rules', async () => {
+    goTo('/app/verdicts?verdict=no-evidence');
+    renderApp(<App signIn={setup(signedIn())} adminConsentResult={null} />);
+    expect(await screen.findByRole('link', { name: /^No evidence \(19\)/ })).toHaveAttribute('aria-current', 'true');
+    navigateTo('/app/verdicts');
+    expect(await screen.findByRole('link', { name: 'All (19)' })).toHaveAttribute('aria-current', 'true');
+  });
+
+  it('shows all rules for an unknown filter, without repeating its value', async () => {
+    goTo('/app/verdicts?verdict=%3Cb%3Ex%3C%2Fb%3E');
+    renderApp(<App signIn={setup(signedIn())} adminConsentResult={null} />);
+    expect(await screen.findByRole('link', { name: 'All (19)' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.queryByText(/<b>x<\/b>/)).toBeNull();
+  });
 });

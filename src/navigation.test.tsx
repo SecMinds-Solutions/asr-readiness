@@ -3,12 +3,14 @@ import { NavigationProvider, useNavigation } from './navigation';
 import { DEFAULT_ORIGINS, MAIN_ID, type Place } from './places';
 
 function Page() {
-  const { place, href } = useNavigation();
+  const { place, search, href } = useNavigation();
   return (
     <>
       <main id={MAIN_ID} tabIndex={-1}>
         <h1>{place.page}</h1>
+        <p>Query: {search}</p>
       </main>
+      <a href={`${href({ site: 'app', page: 'verdicts' })}?verdict=not-ready`}>Not ready</a>
       <a href={href({ site: 'app', page: 'settings' })}>Settings</a>
       <a href={href({ site: 'website', page: 'privacy' })}>Privacy</a>
       <a href={`${href({ site: 'app', page: 'home' })}#analysis`}>Section</a>
@@ -71,6 +73,19 @@ describe('NavigationProvider', () => {
     });
     expect(screen.getByRole('heading', { name: 'home' })).toBeInTheDocument();
     expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  it('shows the query string of the address, and follows a link that only changes it without moving focus', () => {
+    renderAt('/app/verdicts?verdict=ready-to-block', { site: 'app', page: 'verdicts' });
+    expect(screen.getByText('Query: ?verdict=ready-to-block')).toBeInTheDocument();
+    const length = window.history.length;
+    expect(click('Not ready')).toBe(false);
+    expect(window.location.search).toBe('?verdict=not-ready');
+    expect(screen.getByText('Query: ?verdict=not-ready')).toBeInTheDocument();
+    expect(screen.getByRole('main')).not.toHaveFocus();
+    expect(window.history.length).toBe(length + 1);
+    click('Not ready');
+    expect(window.history.length).toBe(length + 1);
   });
 
   it('does not move focus on the first page', () => {
