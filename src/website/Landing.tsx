@@ -8,6 +8,7 @@ import { SOURCE_CODE_URL } from '../components/Footer';
 import { devicesText } from '../components/devicesText';
 import { VerdictBadge } from '../components/Verdicts';
 import { useNavigation } from '../navigation';
+import { signInUrl } from '../places';
 
 const { Accordion, Badge, Card, Icon, NumberBadge, Table, TextLink } = SecMinds;
 
@@ -101,7 +102,8 @@ function Step({ number, title, children }: { number: number; title: string; chil
  */
 export function Landing({ adminConsentUrl }: { adminConsentUrl: string | null }) {
   const { href } = useNavigation();
-  const app = href({ site: 'app', page: 'home' });
+  // "Get started" asks the app to start sign-in at once; "Open the app" and the header's "Open app" do not.
+  const getStarted = signInUrl(href({ site: 'app', page: 'home' }));
   const privacy = href({ site: 'website', page: 'privacy' });
 
   return (
@@ -120,7 +122,7 @@ export function Landing({ adminConsentUrl }: { adminConsentUrl: string | null })
               know which rules you can move from Audit mode to Block mode safely.
             </p>
             <div className="site-actions">
-              <ButtonLink size="lg" href={app}>
+              <ButtonLink size="lg" href={getStarted}>
                 {GET_STARTED_LABEL}
               </ButtonLink>
               <ButtonLink size="lg" variant="secondary" href={`#${HOW_IT_WORKS_ID}`}>
@@ -212,7 +214,7 @@ export function Landing({ adminConsentUrl }: { adminConsentUrl: string | null })
           </Step>
           <Step number={3} title="Sign in with Microsoft">
             Sign in to the app with your work account, on Microsoft&apos;s own sign-in page.{' '}
-            <TextLink href={app}>Open the app</TextLink>
+            <TextLink href={getStarted}>Sign in now</TextLink>
           </Step>
           <Step number={4} title="Review the Verdicts per ASR rule">
             See which rules are ready to block, which need exclusions and why the others are not ready yet.
@@ -338,7 +340,7 @@ export function Landing({ adminConsentUrl }: { adminConsentUrl: string | null })
             Ready to move your ASR rules to Block mode?
           </h2>
           <p className="body-lg site-text">Sign in, review the Verdicts, and download your Suggested policy.</p>
-          <ButtonLink size="lg" href={app}>
+          <ButtonLink size="lg" href={getStarted}>
             {GET_STARTED_LABEL}
           </ButtonLink>
         </div>

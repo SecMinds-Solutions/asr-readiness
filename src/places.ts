@@ -132,3 +132,26 @@ export function resolve(url: URL, origins: Origins): Resolution {
   }
   return resolvePath(path, role, hosts);
 }
+
+/**
+ * Asks the app to start sign-in at once, for the website's "Get started" links. Opened any other way,
+ * the app shows its sign-in card and waits for the User, so sign-in errors and admin consent have a
+ * place to show.
+ */
+export const SIGN_IN_PARAM = 'sign-in';
+
+/** The app's home page, as `urlFor` or `useNavigation().href` give it, with the sign-in request. */
+export function signInUrl(appHome: string): string {
+  return `${appHome}?${SIGN_IN_PARAM}`;
+}
+
+/**
+ * Whether `url` carries the sign-in request, and the address without it. The app removes it from the
+ * address bar before signing in, so a return from Microsoft, a reload or Back never asks again.
+ */
+export function takeSignInRequest(url: URL): { requested: boolean; url: string } {
+  if (!url.searchParams.has(SIGN_IN_PARAM)) return { requested: false, url: url.href };
+  const without = new URL(url.href);
+  without.searchParams.delete(SIGN_IN_PARAM);
+  return { requested: true, url: without.href };
+}

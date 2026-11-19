@@ -80,11 +80,11 @@ describe('Website: landing page', () => {
     expect(container.querySelector('#faq')).toHaveAccessibleName('Frequently asked questions');
   });
 
-  it('leads both calls to action to the app, and the secondary one to How it works', () => {
+  it('leads both calls to action to the app, asking it to start sign-in, and the secondary one to How it works', () => {
     renderWebsite();
     const ctas = screen.getAllByRole('link', { name: GET_STARTED_LABEL });
     expect(ctas).toHaveLength(2);
-    ctas.forEach((cta) => expect(cta).toHaveAttribute('href', APP));
+    ctas.forEach((cta) => expect(cta).toHaveAttribute('href', `${APP}?sign-in`));
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '#how-it-works');
   });
 
@@ -110,7 +110,7 @@ describe('Website: landing page', () => {
     ]);
     expect(steps[0]).toHaveTextContent('Defender for Endpoint Plan 2');
     expect(within(steps[1] as HTMLElement).getByRole('link', { name: 'Open the admin consent page' })).toHaveAttribute('href', consentUrl);
-    expect(within(steps[2] as HTMLElement).getByRole('link', { name: 'Open the app' })).toHaveAttribute('href', APP);
+    expect(within(steps[2] as HTMLElement).getByRole('link', { name: 'Sign in now' })).toHaveAttribute('href', `${APP}?sign-in`);
   });
 
   it('says where the admin consent link is when this build has no app registration', () => {

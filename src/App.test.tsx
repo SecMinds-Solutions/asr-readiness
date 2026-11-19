@@ -288,6 +288,44 @@ describe('App: Contact consent', () => {
   });
 });
 
+describe('App: sign-in requested from the website', () => {
+  it('starts sign-in at once for a signed-out User who chose Get started', async () => {
+    const client = fakeClient(async () => null);
+    renderApp(<App signIn={setup(client)} adminConsentResult={null} signInRequested />);
+    await waitFor(() => expect(client.signIn).toHaveBeenCalledOnce());
+  });
+
+  it('does not sign in again for a User who is already signed in', async () => {
+    const client = fakeClient(async () => ada);
+    renderApp(<App signIn={setup(client)} adminConsentResult={null} signInRequested />);
+    await screen.findByRole('heading', { name: 'Signed in' });
+    expect(client.signIn).not.toHaveBeenCalled();
+  });
+
+  it('waits for the User when the app is opened without the request', async () => {
+    const client = fakeClient(async () => null);
+    renderApp(<App signIn={setup(client)} adminConsentResult={null} />);
+    await screen.findByRole('button', { name: 'Sign in with Microsoft' });
+    expect(client.signIn).not.toHaveBeenCalled();
+  });
+
+  it('shows why sign-in failed and does not try again by itself', async () => {
+    const client = fakeClient(async () => null);
+    vi.mocked(client.signIn).mockRejectedValue(new Error('The sign-in page could not be opened.'));
+    renderApp(<App signIn={setup(client)} adminConsentResult={null} signInRequested />);
+    expect(await alertWith('Sign-in failed')).toHaveTextContent('could not be opened');
+    expect(client.signIn).toHaveBeenCalledOnce();
+  });
+
+  it('shows the admin consent guidance when starting sign-in fails for lack of consent', async () => {
+    const client = fakeClient(async () => null);
+    vi.mocked(client.signIn).mockRejectedValue(consentError);
+    renderApp(<App signIn={setup(client)} adminConsentResult={null} signInRequested />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/admin of your tenant/i);
+    expect(client.signIn).toHaveBeenCalledOnce();
+  });
+});
+
 describe('App: theme', () => {
   it('shows the theme button on every page, also when sign-in is not configured', () => {
     const query = { matches: false, addEventListener: () => {}, removeEventListener: () => {} };

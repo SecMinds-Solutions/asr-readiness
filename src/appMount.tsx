@@ -11,7 +11,7 @@ import { createGraphClient } from './graph/client';
 import { fetchRuleOverview } from './graph/ruleOverview';
 import type { MountOptions } from './main';
 import { NavigationProvider } from './navigation';
-import { hostsFor, urlFor } from './places';
+import { hostsFor, takeSignInRequest, urlFor } from './places';
 import { createReadinessCheck } from './onboarding/readiness';
 import { createUserRecordClient } from './user-record/client';
 
@@ -37,6 +37,11 @@ export function mount({ container, theme, origins, place }: MountOptions) {
   const adminConsentResult = readAdminConsentResult(window.location.search);
   if (adminConsentResult) window.history.replaceState(null, '', urlFor(place, hostsFor(origins, window.location.origin)));
 
+  // The website's "Get started" link asks for sign-in at once. The request leaves the address bar
+  // before sign-in starts, so a return from Microsoft, a reload or Back never asks again.
+  const signInRequest = takeSignInRequest(new URL(window.location.href));
+  if (signInRequest.requested) window.history.replaceState(null, '', signInRequest.url);
+
   // The redirect URI is the root of the page's own origin: the app origin, the default hostname or localhost.
   const authConfig = readAuthConfig(import.meta.env, window.location.origin);
   const signIn = authConfig ? signInSetup(authConfig) : null;
@@ -45,7 +50,7 @@ export function mount({ container, theme, origins, place }: MountOptions) {
     <StrictMode>
       <ThemeContext.Provider value={theme}>
         <NavigationProvider origins={origins} initial={place}>
-          <App signIn={signIn} adminConsentResult={adminConsentResult} />
+          <App signIn={signIn} adminConsentResult={adminConsentResult} signInRequested={signInRequest.requested} />
         </NavigationProvider>
       </ThemeContext.Provider>
     </StrictMode>,

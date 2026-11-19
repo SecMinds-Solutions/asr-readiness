@@ -4,7 +4,7 @@ ASR Compass has a public website that explains what the tool does, its trust pro
 
 The website loads no sign-in code. The sign-in library (MSAL.js), the code that calls Microsoft Graph and the client of the User record API are only loaded by the app; the website's code does not import them, and a test follows its imports to keep it that way. A visitor who only reads about the tool makes no request to Microsoft's sign-in service, gets no token and has no User record. The website sets no cookies and uses no analytics, trackers or third-party scripts. The only thing it keeps in the browser is the visitor's light or dark mode choice, in local storage, as the app does.
 
-Links on the website to start, including the admin consent link, are plain links: to the app, which signs the User in on Microsoft's sign-in page, or to Microsoft's admin consent page, which returns to the app.
+Links on the website to start, including the admin consent link, are plain links: to the app, which signs the User in on Microsoft's sign-in page, or to Microsoft's admin consent page, which returns to the app. The "Get started" links ask the app to start sign-in at once (`?sign-in`), so one click leads to Microsoft's sign-in page; the app removes the request from the address before it signs in. Opened any other way, the app shows its sign-in card and waits for the User, so sign-in errors and admin consent have a place to show.
 
 ## Considered Options
 

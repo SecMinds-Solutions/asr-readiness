@@ -1,4 +1,4 @@
-import { hostsFor, readOrigins, resolve, urlFor, type Origins } from './places';
+import { hostsFor, readOrigins, resolve, signInUrl, takeSignInRequest, urlFor, type Origins } from './places';
 
 const origins: Origins = { site: 'https://asrcompass.cloud', app: 'https://app.asrcompass.cloud' };
 const at = (url: string) => resolve(new URL(url), origins);
@@ -136,5 +136,30 @@ describe('readOrigins', () => {
     expect(readOrigins({})).toEqual(origins);
     expect(readOrigins({ VITE_SITE_ORIGIN: 'http://example.org', VITE_APP_ORIGIN: 'not a url' })).toEqual(origins);
     expect(readOrigins({ VITE_SITE_ORIGIN: 'https://example.org/path' })).toEqual(origins);
+  });
+});
+
+describe('signInUrl and takeSignInRequest', () => {
+  it('links to the app home page with the sign-in request', () => {
+    expect(signInUrl(urlFor({ site: 'app', page: 'home' }, hostsFor(origins, 'https://asrcompass.cloud')))).toBe('https://app.asrcompass.cloud/?sign-in');
+    expect(signInUrl(urlFor({ site: 'app', page: 'home' }, hostsFor(origins, 'http://localhost:5173')))).toBe('http://localhost:5173/app/?sign-in');
+  });
+
+  it('takes the request from the address, keeping everything else', () => {
+    expect(takeSignInRequest(new URL('https://app.asrcompass.cloud/?sign-in'))).toEqual({
+      requested: true,
+      url: 'https://app.asrcompass.cloud/',
+    });
+    expect(takeSignInRequest(new URL('http://localhost:5173/app/?sign-in&x=1#top'))).toEqual({
+      requested: true,
+      url: 'http://localhost:5173/app/?x=1#top',
+    });
+  });
+
+  it('reports no request when the address has none', () => {
+    expect(takeSignInRequest(new URL('https://app.asrcompass.cloud/settings'))).toEqual({
+      requested: false,
+      url: 'https://app.asrcompass.cloud/settings',
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { SecMinds } from './design-system';
 import type { AdminConsentResult } from './auth/consent';
 import type { AuthClient } from './auth/msalAuthClient';
@@ -73,14 +73,17 @@ type AnalysisLoaders = Pick<SignInSetup, 'loadRuleOverview' | 'loadAuditEvents' 
 export function App({
   signIn,
   adminConsentResult,
+  signInRequested = false,
 }: {
   signIn: SignInSetup | null;
   adminConsentResult: AdminConsentResult | null;
+  /** The website's "Get started" link asked to start sign-in at once (`?sign-in`). */
+  signInRequested?: boolean;
 }) {
   const { place } = useNavigation();
   const page: AppPage = place.site === 'app' ? place.page : 'home';
   return signIn ? (
-    <SignInPage setup={signIn} adminConsentResult={adminConsentResult} page={page} />
+    <SignInPage setup={signIn} adminConsentResult={adminConsentResult} signInRequested={signInRequested} page={page} />
   ) : (
     <Page page={page}>
       <SignInNotConfiguredAlert />
@@ -91,13 +94,24 @@ export function App({
 function SignInPage({
   setup,
   adminConsentResult,
+  signInRequested,
   page,
 }: {
   setup: SignInSetup;
   adminConsentResult: AdminConsentResult | null;
+  signInRequested: boolean;
   page: AppPage;
 }) {
   const { state, signIn, signOut } = useAuth(setup.client);
+
+  // A requested sign-in starts once, when MSAL finds nobody signed in; a signed-in User just sees the
+  // app. If it fails, the card says why and the User tries again themselves.
+  const pendingSignIn = useRef(signInRequested);
+  useEffect(() => {
+    if (state.status === 'starting') return;
+    if (pendingSignIn.current && state.status === 'signed-out') signIn();
+    pendingSignIn.current = false;
+  }, [state.status, signIn]);
 
   const account =
     state.status === 'signed-in' ? (
