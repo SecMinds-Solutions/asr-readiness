@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { SecMinds } from './design-system';
 import type { AdminConsentResult } from './auth/consent';
 import type { AuthClient } from './auth/msalAuthClient';
@@ -11,37 +11,32 @@ import {
   CheckingTenant,
   NoDevicesCard,
   NotSupportedCard,
-  ReadyCard,
 } from './components/Onboarding';
 import type { AuditEvents } from './analysis/auditEvents';
-import type { AuditPeriods } from './analysis/auditPeriods';
-import { coverageFailed, type RuleOverview } from './analysis/ruleOverview';
-import { verdictsFor } from './analysis/verdicts';
-import { AccessibleTabs } from './components/AccessibleTabs';
+import type { RuleOverview } from './analysis/ruleOverview';
 import { AuditEventsFailedAlert, AuditEventsView, LoadingAuditEvents } from './components/AuditEvents';
 import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from './components/RuleOverview';
 import { SuggestedPolicyView } from './components/SuggestedPolicy';
 import { LoadingVerdicts, VerdictsFailedAlert, VerdictsView } from './components/Verdicts';
 import { AdminPage, AdminSignInNotice } from './components/Admin';
-import { AppHeader } from './components/AppHeader';
-import { Footer } from './components/Footer';
+import { isAnalysisPage, Page, PAGE_HEADINGS, ShellPage } from './components/AppShell';
 import {
   NoUserRecordYet,
   SettingsSignInNotice,
   UserRecordCard,
   UserRecordDeletedCard,
 } from './components/Settings';
+import { TenantStatus } from './components/TenantStatus';
 import { UserMenu } from './components/UserMenu';
 import type { ReadinessCheck } from './onboarding/readiness';
 import { useNavigation } from './navigation';
-import { MAIN_ID, type AppPage } from './places';
-import { useLoad, type LoadState } from './useLoad';
+import type { AppPage } from './places';
+import { useAnalysis, useAssessments, type Analysis, type AnalysisLoaders, type Loaded } from './useAnalysis';
 import { useReadiness } from './onboarding/useReadiness';
 import {
   AdminConsentResultAlert,
   CheckingSignIn,
   ConsentRequiredAlert,
-  SignedInCard,
   SignInCard,
   SignInFailedAlert,
   SignInNotConfiguredAlert,
@@ -50,25 +45,16 @@ import type { UserRecordClient } from './user-record/client';
 import { useUserRecord } from './user-record/useUserRecord';
 import './app.css';
 
-const { Button } = SecMinds;
+const { Button, Card, TextLink } = SecMinds;
 
 /** What the app needs to sign Users in; null when this build has no app registration. */
-export interface SignInSetup {
+export interface SignInSetup extends AnalysisLoaders {
   client: AuthClient;
   adminConsentUrl: string;
   userRecord: UserRecordClient;
   /** Whether the Tenant is a Supported tenant and the User has the roles an Analysis needs. */
   checkReadiness: ReadinessCheck;
-  /** Every ASR rule with its Rule mode, and its Coverage once that can be read. */
-  loadRuleOverview: () => Promise<RuleOverview>;
-  /** Audit events per ASR rule, application and path in the Observation window. */
-  loadAuditEvents: () => Promise<AuditEvents>;
-  /** Per ASR rule GUID: how long devices have reported it in Audit mode without a break. */
-  loadAuditPeriods: () => Promise<AuditPeriods>;
 }
-
-/** What the app reads once the Tenant is ready for an Analysis. */
-type AnalysisLoaders = Pick<SignInSetup, 'loadRuleOverview' | 'loadAuditEvents' | 'loadAuditPeriods'>;
 
 export function App({
   signIn,
@@ -85,11 +71,14 @@ export function App({
   return signIn ? (
     <SignInPage setup={signIn} adminConsentResult={adminConsentResult} signInRequested={signInRequested} page={page} />
   ) : (
-    <Page page={page}>
+    <Page title={signedOutTitle(page)}>
       <SignInNotConfiguredAlert />
     </Page>
   );
 }
+
+/** Signed out, the home page carries the product name; other pages keep their own heading. */
+const signedOutTitle = (page: AppPage) => (page === 'home' ? 'ASR Compass' : PAGE_HEADINGS[page].title);
 
 function SignInPage({
   setup,
@@ -113,25 +102,39 @@ function SignInPage({
     pendingSignIn.current = false;
   }, [state.status, signIn]);
 
+  if (state.status === 'signed-in') {
+    return <SignedIn user={state.user} setup={setup} page={page} onSignOut={signOut} />;
+  }
+
   const account =
-    state.status === 'signed-in' ? (
-      <UserMenu user={state.user} admin={state.user.admin} onSignOut={signOut} />
-    ) : state.status === 'signed-out' || state.status === 'consent-required' || state.status === 'failed' ? (
+    state.status === 'signed-out' || state.status === 'consent-required' || state.status === 'failed' ? (
       <Button size="sm" onClick={signIn}>
         Sign in
       </Button>
     ) : null;
 
-  if (page !== 'home' && state.status !== 'signed-in') {
+  if (page !== 'home') {
     return (
-      <Page account={account} page={page}>
-        {state.status === 'starting' ? <CheckingSignIn /> : page === 'settings' ? <SettingsSignInNotice /> : <AdminSignInNotice />}
+      <Page account={account} title={signedOutTitle(page)}>
+        {state.status === 'starting' ? (
+          <CheckingSignIn />
+        ) : state.status === 'consent-required' ? (
+          <ConsentRequiredAlert adminConsentUrl={setup.adminConsentUrl} />
+        ) : state.status === 'failed' ? (
+          <SignInFailedAlert message={state.message} onRetry={signIn} />
+        ) : page === 'settings' ? (
+          <SettingsSignInNotice />
+        ) : page === 'admin' || page === 'admin-users' ? (
+          <AdminSignInNotice />
+        ) : (
+          <AnalysisSignInNotice />
+        )}
       </Page>
     );
   }
 
   return (
-    <Page account={account} page={page}>
+    <Page account={account} title={signedOutTitle(page)}>
       {adminConsentResult && <AdminConsentResultAlert result={adminConsentResult} />}
       {state.status === 'starting' && <CheckingSignIn />}
       {(state.status === 'signed-out' || state.status === 'redirecting') && (
@@ -139,93 +142,155 @@ function SignInPage({
       )}
       {state.status === 'consent-required' && <ConsentRequiredAlert adminConsentUrl={setup.adminConsentUrl} />}
       {state.status === 'failed' && <SignInFailedAlert message={state.message} onRetry={signIn} />}
-      {state.status === 'signed-in' && (
-        <SignedIn
-          user={state.user}
-          userRecord={setup.userRecord}
-          checkReadiness={setup.checkReadiness}
-          loaders={setup}
-          page={page}
-          onSignOut={signOut}
-        />
-      )}
     </Page>
   );
 }
 
+/** On a page of the Analysis, for a User who is not signed in. */
+function AnalysisSignInNotice() {
+  const { href } = useNavigation();
+  return (
+    <p className="body app-text">
+      Sign in to run an Analysis of your Tenant. <TextLink href={href({ site: 'app', page: 'home' })}>Go to the start page</TextLink>
+    </p>
+  );
+}
+
 /**
- * A new User makes their Contact consent choice before anything else; a returning User is not asked
- * again. On Settings, a User sees their User record and can change or delete it; once deleted,
- * nothing continues until they sign out.
+ * A new User makes their Contact consent choice before anything else, on a page without the sidebar;
+ * a returning User is not asked again. Once deleted, nothing continues until they sign out.
  */
 function SignedIn({
   user,
-  userRecord,
-  checkReadiness,
-  loaders,
+  setup,
   page,
   onSignOut,
 }: {
   user: SignedInUser;
-  userRecord: UserRecordClient;
-  checkReadiness: ReadinessCheck;
-  loaders: AnalysisLoaders;
+  setup: SignInSetup;
   page: AppPage;
   onSignOut: () => void;
 }) {
   const { href } = useNavigation();
-  const { state, retry, saveContactConsent, changeContactConsent, deleteUserRecord } = useUserRecord(userRecord);
-  if (state.status === 'deleted') return <UserRecordDeletedCard onSignOut={onSignOut} />;
-  // The API decides who may see the User records; anyone else gets a "not allowed" message here.
-  if (page === 'admin') return <AdminPage client={userRecord} />;
-  if (page === 'settings') {
+  const record = useUserRecord(setup.userRecord);
+  const { state, retry, saveContactConsent } = record;
+  const account = <UserMenu user={user} admin={user.admin} onSignOut={onSignOut} />;
+  const title = PAGE_HEADINGS[page].title;
+
+  if (state.status === 'deleted') {
     return (
-      <>
-        {state.status === 'loading' && <LoadingUserRecord />}
-        {state.status === 'failed' && <UserRecordFailedAlert message={state.message} onRetry={retry} />}
-        {state.status === 'choice-needed' && <NoUserRecordYet homeHref={href({ site: 'app', page: 'home' })} />}
-        {state.status === 'known' && (
-          <UserRecordCard
-            record={state.record}
-            changing={state.changing}
-            error={state.error}
-            onChangeContactConsent={(contactConsent) => changeContactConsent(state.record, contactConsent)}
-            onDelete={() => deleteUserRecord(state.record)}
-          />
-        )}
-      </>
+      <Page account={account} title={title}>
+        <UserRecordDeletedCard onSignOut={onSignOut} />
+      </Page>
     );
   }
+  // The API decides who may see the User records; anyone else gets a "not allowed" message there.
+  if (state.status === 'known' || page === 'admin' || page === 'admin-users') {
+    return <Workspace user={user} setup={setup} page={page} account={account} record={record} />;
+  }
+  switch (state.status) {
+    case 'loading':
+      return (
+        <Page account={account} title={title}>
+          <LoadingUserRecord />
+        </Page>
+      );
+    case 'failed':
+      return (
+        <Page account={account} title={title}>
+          <UserRecordFailedAlert message={state.message} onRetry={retry} />
+        </Page>
+      );
+    case 'choice-needed':
+      return page === 'settings' ? (
+        <Page account={account} title={title}>
+          <NoUserRecordYet homeHref={href({ site: 'app', page: 'home' })} />
+        </Page>
+      ) : (
+        <Page account={account} title="Welcome to ASR Compass">
+          <ContactConsentCard onContinue={saveContactConsent} saving={state.saving} error={state.error} />
+        </Page>
+      );
+  }
+}
+
+/**
+ * The signed-in app with its sidebar. The onboarding check runs once the User first opens a page of
+ * the Analysis, and the Analysis is read once the Tenant is ready; both stay while the User moves
+ * between pages, so a page change never reads Graph again.
+ */
+function Workspace({
+  user,
+  setup,
+  page,
+  account,
+  record,
+}: {
+  user: SignedInUser;
+  setup: SignInSetup;
+  page: AppPage;
+  account: ReactNode;
+  record: ReturnType<typeof useUserRecord>;
+}) {
+  const [analysisOpened, setAnalysisOpened] = useState(isAnalysisPage(page));
+  if (isAnalysisPage(page) && !analysisOpened) setAnalysisOpened(true);
+  const readiness = useReadiness(analysisOpened ? setup.checkReadiness : null);
+  const analysis = useAnalysis(readiness.state.status === 'ready' ? setup : null);
+
+  return (
+    <ShellPage account={account} page={page} admin={user.admin}>
+      {page === 'admin' || page === 'admin-users' ? (
+        <AdminPage client={setup.userRecord} />
+      ) : page === 'settings' ? (
+        <SettingsContent record={record} />
+      ) : (
+        <AnalysisContent user={user} page={page} readiness={readiness} analysis={analysis} />
+      )}
+    </ShellPage>
+  );
+}
+
+function SettingsContent({ record }: { record: ReturnType<typeof useUserRecord> }) {
+  const { href } = useNavigation();
+  const { state, retry, changeContactConsent, deleteUserRecord } = record;
   switch (state.status) {
     case 'loading':
       return <LoadingUserRecord />;
     case 'failed':
       return <UserRecordFailedAlert message={state.message} onRetry={retry} />;
     case 'choice-needed':
-      return <ContactConsentCard onContinue={saveContactConsent} saving={state.saving} error={state.error} />;
+      return <NoUserRecordYet homeHref={href({ site: 'app', page: 'home' })} />;
+    case 'deleted':
+      return null;
     case 'known':
       return (
-        <>
-          <SignedInCard user={user} />
-          <OnboardingCheck checkReadiness={checkReadiness} loaders={loaders} />
-        </>
+        <UserRecordCard
+          record={state.record}
+          changing={state.changing}
+          error={state.error}
+          onChangeContactConsent={(contactConsent) => changeContactConsent(state.record, contactConsent)}
+          onDelete={() => deleteUserRecord(state.record)}
+        />
       );
   }
 }
 
-/** After the Contact consent choice: is this a Supported tenant, and may this User run an Analysis? */
-function OnboardingCheck({ checkReadiness, loaders }: { checkReadiness: ReadinessCheck; loaders: AnalysisLoaders }) {
-  const { state, checkAgain } = useReadiness(checkReadiness);
+/** A page of the Analysis: the onboarding message while the Tenant is not ready, then the Tenant status bar and the page. */
+function AnalysisContent({
+  user,
+  page,
+  readiness,
+  analysis,
+}: {
+  user: SignedInUser;
+  page: AppPage;
+  readiness: ReturnType<typeof useReadiness>;
+  analysis: Analysis;
+}) {
+  const { state, checkAgain } = readiness;
   switch (state.status) {
     case 'checking':
       return <CheckingTenant />;
-    case 'ready':
-      return (
-        <>
-          <ReadyCard devices={state.devices} />
-          <AnalysisSections loaders={loaders} />
-        </>
-      );
     case 'no-devices':
       return <NoDevicesCard onCheckAgain={checkAgain} />;
     case 'not-supported':
@@ -241,72 +306,75 @@ function OnboardingCheck({ checkReadiness, loaders }: { checkReadiness: Readines
       );
     case 'failed':
       return <CheckFailedAlert message={state.message} onRetry={checkAgain} />;
+    case 'ready': {
+      const parts = [analysis.overview.state, analysis.events.state, analysis.periods.state];
+      return (
+        <>
+          <TenantStatus
+            tenantId={user.tenantId}
+            devices={state.devices}
+            readAt={analysis.readAt}
+            reading={parts.some((part) => part.status === 'loading')}
+            onReadAgain={analysis.readAgain}
+          />
+          <AnalysisPage page={page} analysis={analysis} />
+        </>
+      );
+    }
   }
 }
 
-type Loaded<T> = { state: LoadState<T>; reload: () => void };
+function AnalysisPage({ page, analysis }: { page: AppPage; analysis: Analysis }) {
+  switch (page) {
+    case 'verdicts':
+      return <VerdictsSection analysis={analysis} />;
+    case 'policy':
+      return <SuggestedPolicySection analysis={analysis} />;
+    case 'rules':
+      return <RuleOverviewSection {...analysis.overview} />;
+    case 'events':
+      return <AuditEventsSection {...analysis.events} />;
+    default:
+      return <OverviewSection />;
+  }
+}
 
-/**
- * Each part of the Analysis is read once, here, above the tabs: switching tabs only changes what is
- * shown and never reads Graph again. The Verdicts combine the parts; the other tabs show them.
- */
-function AnalysisSections({ loaders }: { loaders: AnalysisLoaders }) {
-  const overview = useLoad(loaders.loadRuleOverview);
-  const events = useLoad(loaders.loadAuditEvents);
-  const periods = useLoad(loaders.loadAuditPeriods);
+/** Until the Overview has its own figures: where to start. */
+function OverviewSection() {
+  const { href } = useNavigation();
   return (
-    <AccessibleTabs
-      id="analysis"
-      label="Analysis"
-      tabs={[
-        { value: 'verdicts', label: 'Verdicts', content: <VerdictsSection overview={overview} events={events} periods={periods} /> },
-        { value: 'rules', label: 'ASR rules', content: <RuleOverviewSection {...overview} /> },
-        { value: 'events', label: 'Audit events', content: <AuditEventsSection {...events} /> },
-      ]}
-    />
+    <Card title="Start with the Verdicts">
+      <p className="app-text">
+        Each ASR rule gets a Verdict from its Rule mode, Audit period and Audit events.{' '}
+        <TextLink href={href({ site: 'app', page: 'verdicts' })}>See the Verdicts</TextLink>, then download the{' '}
+        <TextLink href={href({ site: 'app', page: 'policy' })}>Suggested policy</TextLink> for the rules that are ready.
+      </p>
+    </Card>
   );
 }
 
-function VerdictsSection({
-  overview,
-  events,
-  periods,
-}: {
-  overview: Loaded<RuleOverview>;
-  events: Loaded<AuditEvents>;
-  periods: Loaded<AuditPeriods>;
-}) {
-  const assessments = useMemo(() => {
-    if (overview.state.status !== 'loaded' || events.state.status !== 'loaded' || periods.state.status !== 'loaded') return null;
-    const { modes, coverage } = overview.state.value;
-    if (coverageFailed(coverage)) return null;
-    return verdictsFor({ modes, coverage, auditEvents: events.state.value, auditPeriods: periods.state.value });
-  }, [overview.state, events.state, periods.state]);
+function VerdictsSection({ analysis }: { analysis: Analysis }) {
+  const verdicts = useAssessments(analysis);
+  switch (verdicts.status) {
+    case 'loading':
+      return <LoadingVerdicts />;
+    case 'failed':
+      return <VerdictsFailedAlert message={verdicts.message} onRetry={verdicts.retry} />;
+    case 'ready':
+      return <VerdictsView assessments={verdicts.assessments} />;
+  }
+}
 
-  // A Verdict without Coverage would be No evidence for every rule, so a failed Coverage query is a failed part.
-  const failed = [
-    { name: 'the ASR rules', ...overview },
-    { name: 'the Audit events', ...events },
-    { name: 'how long rules have been in Audit mode', ...periods },
-  ].flatMap(({ name, state, reload }) => (state.status === 'failed' ? [{ message: `${name}: ${state.message}`, reload }] : []));
-  if (overview.state.status === 'loaded' && coverageFailed(overview.state.value.coverage)) {
-    failed.push({ message: `Coverage: ${overview.state.value.coverage.failed}`, reload: overview.reload });
+function SuggestedPolicySection({ analysis }: { analysis: Analysis }) {
+  const verdicts = useAssessments(analysis);
+  switch (verdicts.status) {
+    case 'loading':
+      return <LoadingVerdicts />;
+    case 'failed':
+      return <VerdictsFailedAlert message={verdicts.message} onRetry={verdicts.retry} />;
+    case 'ready':
+      return <SuggestedPolicyView assessments={verdicts.assessments} />;
   }
-  if (failed.length > 0) {
-    return (
-      <VerdictsFailedAlert
-        message={`A Verdict needs every part of the Analysis, and these could not be read. ${failed.map((part) => part.message).join(' ')}`}
-        onRetry={() => failed.forEach((part) => part.reload())}
-      />
-    );
-  }
-  if (!assessments) return <LoadingVerdicts />;
-  return (
-    <>
-      <VerdictsView assessments={assessments} />
-      <SuggestedPolicyView assessments={assessments} />
-    </>
-  );
 }
 
 function RuleOverviewSection({ state, reload }: Loaded<RuleOverview>) {
@@ -329,20 +397,4 @@ function AuditEventsSection({ state, reload }: Loaded<AuditEvents>) {
     case 'loaded':
       return <AuditEventsView events={state.value} />;
   }
-}
-
-const TITLES: Record<AppPage, string> = { home: 'ASR Compass', settings: 'Settings', admin: 'Admin' };
-
-/** Every page of the app: header, one heading, the page's content and the footer. */
-function Page({ account, page, children }: { account?: ReactNode; page: AppPage; children: ReactNode }) {
-  return (
-    <div className="sm-root app">
-      <AppHeader account={account} />
-      <main className="app-main" id={MAIN_ID} tabIndex={-1}>
-        <h1 className="h1 app-title">{TITLES[page]}</h1>
-        {children}
-      </main>
-      <Footer />
-    </div>
-  );
 }

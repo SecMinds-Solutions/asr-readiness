@@ -8,6 +8,8 @@ export interface SignedInUser {
   name: string;
   username: string;
   homeTenantId: string;
+  /** The Tenant the User signed in to, whose devices and policies an Analysis reads; shown in the Tenant status bar. */
+  tenantId: string;
   /** The email address from the ID token, or the username when it has none; shown in the user menu only. */
   email: string;
   /**
@@ -30,5 +32,5 @@ export function signedInUserFrom(
   const admin = Array.isArray(roles) && roles.includes(ADMIN_ROLE);
   const emailClaim = account.idTokenClaims?.email;
   const email = typeof emailClaim === 'string' && emailClaim ? emailClaim : account.username;
-  return { name: account.name || account.username, username: account.username, homeTenantId, email, admin };
+  return { name: account.name || account.username, username: account.username, homeTenantId, tenantId: account.tenantId || homeTenantId, email, admin };
 }

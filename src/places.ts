@@ -11,7 +11,7 @@ export interface Origins {
 export const DEFAULT_ORIGINS: Origins = { site: 'https://asrcompass.cloud', app: 'https://app.asrcompass.cloud' };
 
 export type WebsitePage = 'home' | 'privacy';
-export type AppPage = 'home' | 'settings' | 'admin';
+export type AppPage = 'home' | 'verdicts' | 'policy' | 'rules' | 'events' | 'settings' | 'admin' | 'admin-users';
 export type Place = { site: 'website'; page: WebsitePage } | { site: 'app'; page: AppPage };
 export type Resolution = { kind: 'show'; place: Place } | { kind: 'redirect'; url: string };
 
@@ -27,8 +27,23 @@ export const LOCAL_APP_PATH = '/app';
 /** The id of the page's main element, which takes focus when the page changes. */
 export const MAIN_ID = 'main';
 
-const WEBSITE_PATHS: Record<string, WebsitePage> = { '/': 'home', '/privacy': 'privacy' };
-const APP_PATHS: Record<string, AppPage> = { '/': 'home', '/settings': 'settings', '/admin': 'admin' };
+/** The path of every page; each half's paths are its own. */
+const WEBSITE_PAGE_PATHS: Record<WebsitePage, string> = { home: '/', privacy: '/privacy' };
+const APP_PAGE_PATHS: Record<AppPage, string> = {
+  home: '/',
+  verdicts: '/verdicts',
+  policy: '/policy',
+  rules: '/rules',
+  events: '/events',
+  settings: '/settings',
+  admin: '/admin',
+  'admin-users': '/admin/users',
+};
+
+const byPath = <P extends string>(paths: Record<P, string>): Record<string, P> =>
+  Object.fromEntries(Object.entries(paths).map(([page, path]) => [path, page])) as Record<string, P>;
+const WEBSITE_PATHS = byPath(WEBSITE_PAGE_PATHS);
+const APP_PATHS = byPath(APP_PAGE_PATHS);
 
 /** An origin given at build time; anything else than a plain https origin is ignored. */
 function httpsOrigin(value: string | undefined): string | null {
@@ -76,7 +91,7 @@ export function hostsFor(origins: Origins, currentOrigin: string): Hosts {
   }
 }
 
-const pathOf = (place: Place) => (place.page === 'home' ? '/' : `/${place.page}`);
+const pathOf = (place: Place) => (place.site === 'website' ? WEBSITE_PAGE_PATHS[place.page] : APP_PAGE_PATHS[place.page]);
 
 export function urlFor(place: Place, hosts: Hosts): string {
   return `${place.site === 'website' ? hosts.siteBase : hosts.appBase}${pathOf(place)}`;

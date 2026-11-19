@@ -1,6 +1,5 @@
 import { SecMinds } from '../design-system';
 import type { AdminConsentResult } from '../auth/consent';
-import type { SignedInUser } from '../auth/user';
 import { useNavigation } from '../navigation';
 
 const { Alert, Button, Card, Spinner, TextLink } = SecMinds;
@@ -44,26 +43,6 @@ export function SignInCard({
       </p>
       <p className="app-text app-hint">
         <TextLink href={href({ site: 'website', page: 'home' })}>What is ASR Compass?</TextLink>
-      </p>
-    </Card>
-  );
-}
-
-export function SignedInCard({ user }: { user: SignedInUser }) {
-  const { href } = useNavigation();
-  return (
-    <Card title="Signed in">
-      <dl className="app-details">
-        <dt>Name</dt>
-        <dd>{user.name}</dd>
-        <dt>Username</dt>
-        <dd>{user.username}</dd>
-        <dt>Home tenant</dt>
-        <dd className="code">{user.homeTenantId}</dd>
-      </dl>
-      <p className="app-text app-hint">
-        See, change or delete what is stored about you under{' '}
-        <TextLink href={href({ site: 'app', page: 'settings' })}>Settings</TextLink> in the user menu.
       </p>
     </Card>
   );

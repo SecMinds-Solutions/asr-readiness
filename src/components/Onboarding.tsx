@@ -12,17 +12,6 @@ export function CheckingTenant() {
   );
 }
 
-export function ReadyCard({ devices }: { devices: number }) {
-  return (
-    <Card title="Ready for an Analysis">
-      <p className="app-text">
-        Advanced hunting and the Intune policies can be read with your roles, and advanced hunting shows {devices}{' '}
-        {devices === 1 ? 'device' : 'devices'} onboarded to Defender for Endpoint that you can see.
-      </p>
-    </Card>
-  );
-}
-
 export function NoDevicesCard({ onCheckAgain }: { onCheckAgain: () => void }) {
   return (
     <Card

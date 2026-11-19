@@ -12,7 +12,7 @@ describe('signedInUserFrom', () => {
         homeAccountId: `aaaa.${homeTenantId}`,
         tenantId: homeTenantId,
       }),
-    ).toEqual({ name: 'Ada Lovelace', username: 'ada@contoso.com', homeTenantId, email: 'ada@contoso.com', admin: false });
+    ).toEqual({ name: 'Ada Lovelace', username: 'ada@contoso.com', homeTenantId, tenantId: homeTenantId, email: 'ada@contoso.com', admin: false });
   });
 
   it('takes the Home tenant from the home account, not the tenant signed in to', () => {
@@ -20,6 +20,13 @@ describe('signedInUserFrom', () => {
       signedInUserFrom({ name: 'Ada', username: 'ada@contoso.com', homeAccountId: `aaaa.${homeTenantId}`, tenantId: otherTenantId })
         .homeTenantId,
     ).toBe(homeTenantId);
+  });
+
+  it('keeps the tenant signed in to apart, as the Tenant an Analysis reads', () => {
+    expect(
+      signedInUserFrom({ name: 'Ada', username: 'ada@contoso.com', homeAccountId: `aaaa.${homeTenantId}`, tenantId: otherTenantId })
+        .tenantId,
+    ).toBe(otherTenantId);
   });
 
   it.each([

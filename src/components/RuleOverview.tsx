@@ -70,7 +70,7 @@ export function RuleOverviewView({
   const conflicts = modes.rules.filter((row) => row.state.kind === 'conflict').length;
   const rows = modes.rules.map(({ rule, state }) => ({ rule, state }));
   return (
-    <Card title="ASR rules">
+    <Card title="Rule mode and Coverage per ASR rule">
       {coverageFailed(result) && (
         <Alert tone="warning" title="Coverage could not be read">
           <p className="app-text">

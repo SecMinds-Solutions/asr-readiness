@@ -31,7 +31,7 @@ const coverageText = (row: RuleAssessment) => {
 /** Every ASR rule with its Verdict, the Coverage it speaks for, and why it was given. */
 export function VerdictsView({ assessments }: { assessments: RuleAssessment[] }) {
   return (
-    <Card title="Verdicts">
+    <Card title="Verdict per ASR rule">
       <p className="app-text">
         A Verdict per ASR rule across the Tenant. Each Verdict speaks only for the devices in its Coverage: the devices that
         report the rule in Audit mode.

@@ -50,7 +50,7 @@ export function SuggestedPolicyView({
   }
   if (built.status === 'none') {
     return (
-      <Card title="Suggested policy">
+      <Card title="Rules the Suggested policy sets to Block mode">
         <EmptyState title="No Suggested policy yet">
           No ASR rule is Ready to block or Ready with exclusions, so there is nothing to set to Block.
         </EmptyState>
@@ -60,7 +60,7 @@ export function SuggestedPolicyView({
 
   const { rules, policy, fileName } = built.value;
   return (
-    <Card title="Suggested policy">
+    <Card title="Rules the Suggested policy sets to Block mode">
       <p className="app-text">
         The Suggested policy sets the ASR rules below to Block mode, with their Suggested exclusions. Rules that are not ready
         are not in it, so it leaves them as your own policies set them. Each Verdict speaks only for the devices in its

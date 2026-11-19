@@ -38,6 +38,18 @@ describe('resolve: the app host', () => {
     expect(at('https://app.asrcompass.cloud/admin/')).toEqual(show('app', 'admin'));
   });
 
+  it('shows each page of the Analysis and the admin pages at its own path', () => {
+    expect(at('https://app.asrcompass.cloud/verdicts')).toEqual(show('app', 'verdicts'));
+    expect(at('https://app.asrcompass.cloud/policy')).toEqual(show('app', 'policy'));
+    expect(at('https://app.asrcompass.cloud/rules')).toEqual(show('app', 'rules'));
+    expect(at('https://app.asrcompass.cloud/events/')).toEqual(show('app', 'events'));
+    expect(at('https://app.asrcompass.cloud/admin/users')).toEqual(show('app', 'admin-users'));
+  });
+
+  it('shows a page whose address has a query string, such as a filter', () => {
+    expect(at('https://app.asrcompass.cloud/verdicts?verdict=not-ready')).toEqual(show('app', 'verdicts'));
+  });
+
   it('sends the privacy notice to the website host', () => {
     expect(at('https://app.asrcompass.cloud/privacy')).toEqual(redirect('https://asrcompass.cloud/privacy'));
   });
@@ -120,6 +132,8 @@ describe('hostsFor and urlFor', () => {
     const hosts = hostsFor(origins, 'http://localhost:5173');
     expect(urlFor({ site: 'app', page: 'home' }, hosts)).toBe('http://localhost:5173/app/');
     expect(urlFor({ site: 'app', page: 'admin' }, hosts)).toBe('http://localhost:5173/app/admin');
+    expect(urlFor({ site: 'app', page: 'admin-users' }, hosts)).toBe('http://localhost:5173/app/admin/users');
+    expect(urlFor({ site: 'app', page: 'verdicts' }, hosts)).toBe('http://localhost:5173/app/verdicts');
     expect(urlFor({ site: 'website', page: 'home' }, hosts)).toBe('http://localhost:5173/');
   });
 });

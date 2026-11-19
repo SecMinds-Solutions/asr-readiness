@@ -96,7 +96,35 @@
 .sm-menu-item.is-danger:hover,.sm-menu-item.is-danger:focus-visible{background:var(--danger-soft);color:var(--on-danger-soft)}
 .sm-menu-item[aria-disabled=true],.sm-menu-item[aria-disabled=true]:hover{background:none;color:var(--ink-muted);cursor:not-allowed}
 .sm-menu-sep{height:1px;margin:var(--space-1) 0;background:var(--line)}
-.sm-sidenav{display:flex;flex-direction:column;gap:var(--space-1);width:220px}
+.sm-sidenav{width:220px}
+.sm-sidenav-list{display:flex;flex-direction:column;gap:var(--space-1)}
+.sm-sidenav-list.has-groups{gap:var(--space-4)}
+.sm-sidenav-group ul{display:flex;flex-direction:column;gap:var(--space-1);list-style:none;margin:0;padding:0}
+.sm-sidenav-heading{padding:0 12px;margin-bottom:var(--space-1);font-size:12px;line-height:16px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted)}
+.sm-sidenav.has-dividers .sm-sidenav-group+.sm-sidenav-group{border-top:1px solid var(--line);padding-top:var(--space-4)}
+.sm-sidenav-toggle{display:none;align-items:center;gap:var(--space-2);width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--surface-raised);color:var(--ink);font:inherit;font-size:14px;line-height:20px;font-weight:700;text-align:left;cursor:pointer}
+.sm-sidenav-toggle:hover{border-color:var(--accent)}
+.sm-sidenav-toggle:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sm-sidenav-toggle-text{flex:none}
+.sm-sidenav-toggle-current{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400;color:var(--ink-muted)}
+.sm-sidenav-chevron{margin-left:auto}
+.sm-sidenav-toggle[aria-expanded=true] .sm-sidenav-chevron{transform:rotate(180deg)}
+.sm-sidenav.is-collapsed{width:100%}
+.sm-sidenav.is-collapsed .sm-sidenav-toggle{display:flex}
+.sm-sidenav.is-collapsed .sm-sidenav-list{display:none;margin-top:var(--space-2)}
+.sm-sidenav.is-collapsed .sm-sidenav-list.is-open{display:flex}
+.sm-applayout{display:flex;align-items:flex-start;gap:var(--space-8);padding:var(--space-6)}
+.sm-applayout-side{flex:none;position:sticky;top:var(--space-6);max-height:calc(100vh - var(--space-12));overflow-y:auto;padding:var(--space-1);margin:calc(var(--space-1) * -1)}
+.sm-applayout-main{flex:1;min-width:0}
+/* SideNav and AppLayout collapse below 768px: SecMinds.SIDENAV_BREAKPOINT. This is the only media query for it. */
+@media (max-width:767.98px){
+.sm-sidenav{width:100%}
+.sm-sidenav .sm-sidenav-toggle{display:flex}
+.sm-sidenav .sm-sidenav-list{display:none;margin-top:var(--space-2)}
+.sm-sidenav .sm-sidenav-list.is-open{display:flex}
+.sm-applayout{flex-direction:column;align-items:stretch;gap:var(--space-4);padding:var(--space-4)}
+.sm-applayout-side{position:static;max-height:none;overflow:visible}
+}
 .sm-sidenav a{display:flex;align-items:center;gap:var(--space-2);padding:8px 12px;border-radius:var(--radius-md);color:var(--ink);text-decoration:none;font-size:14px;line-height:20px}
 .sm-sidenav a:hover{background:var(--accent-soft)}.sm-sidenav a[aria-current]{background:var(--accent);color:var(--on-accent);font-weight:700}
 .sm-crumbs ol{display:flex;flex-wrap:wrap;gap:var(--space-1);list-style:none;margin:0;padding:0;font-size:14px;line-height:20px}

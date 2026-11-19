@@ -19,6 +19,7 @@ const ada: SignedInUser = {
   name: 'Ada Lovelace',
   username: 'ada@contoso.com',
   homeTenantId: '11111111-1111-1111-1111-111111111111',
+  tenantId: '11111111-1111-1111-1111-111111111111',
   email: 'ada@contoso.com',
   admin: false,
 };
@@ -117,13 +118,25 @@ function setup(
 const alertWith = async (title: string) =>
   (await screen.findAllByRole('alert')).find((alert) => alert.textContent?.includes(title)) as HTMLElement;
 
-/** Opens one of the Analysis tabs once the onboarding check has passed. */
-const openTab = async (name: string) => fireEvent.click(await screen.findByRole('tab', { name }));
+/** The sidebar of the signed-in app. */
+const sidebar = async () => screen.findByRole('navigation', { name: 'Main' });
+
+/** Opens a page from the sidebar, as a User clicking its link. */
+const openPage = async (name: string) => fireEvent.click(within(await sidebar()).getByRole('link', { name }));
+
+/** The heading of a page of the signed-in app, once the sidebar shows: before it, a loading page has the same heading. */
+const findPageHeading = async (name: string) => {
+  await sidebar();
+  return screen.findByRole('heading', { level: 1, name });
+};
 
 const findNavbarSignIn = async () => within(screen.getByRole('banner')).findByRole('button', { name: 'Sign in' });
 
 /** Opens the user menu in the header. */
-const openUserMenu = async () => fireEvent.click(await within(screen.getByRole('banner')).findByRole('button', { name: 'User menu' }));
+const openUserMenu = async () => {
+  await sidebar();
+  fireEvent.click(screen.getByRole('button', { name: /user menu/ }));
+};
 
 const consentError = Object.assign(new Error('AADSTS65004: User declined to consent.'), {
   errorCode: 'access_denied',
@@ -162,14 +175,13 @@ describe('App', () => {
     expect(await screen.findByRole('link', { name: /grant admin consent/i })).toHaveAttribute('href', consentUrl);
   });
 
-  it('shows the signed-in User and their Home tenant, and signs them out', async () => {
+  it('shows the signed-in User in the user menu, and signs them out', async () => {
     const client = fakeClient(async () => ada);
     renderApp(<App signIn={setup(client)} adminConsentResult={null} />);
-    const card = (await screen.findByRole('heading', { name: 'Signed in' })).closest('.sm-card') as HTMLElement;
-    expect(within(card).getByText('Ada Lovelace')).toBeInTheDocument();
-    expect(within(card).getByText('ada@contoso.com')).toBeInTheDocument();
-    expect(within(card).getByText(ada.homeTenantId)).toBeInTheDocument();
+    await sidebar();
+    expect(within(screen.getByRole('banner')).getByRole('button', { name: 'Ada Lovelace, user menu' })).toBeInTheDocument();
     await openUserMenu();
+    expect(screen.getByRole('menu')).toHaveAccessibleDescription(/ada@contoso\.com/);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
     expect(client.signOut).toHaveBeenCalledOnce();
   });
@@ -231,7 +243,7 @@ describe('App: Contact consent', () => {
     renderApp(<App signIn={setup(signedIn(), fakeUserRecord(null))} adminConsentResult={null} />);
     const choice = await screen.findByRole('checkbox', { name: /SecMinds may email me about its other products/i });
     expect(choice).not.toBeChecked();
-    expect(screen.queryByRole('heading', { name: 'Signed in' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument();
   });
 
   it('stores no consent when the User continues without ticking the box', async () => {
@@ -239,7 +251,8 @@ describe('App: Contact consent', () => {
     renderApp(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
     expect(userRecord.saveContactConsent).toHaveBeenCalledWith(false);
-    expect(await screen.findByRole('heading', { name: 'Signed in' })).toBeInTheDocument();
+    expect(await findPageHeading('Overview')).toBeInTheDocument();
+    expect(await sidebar()).toBeInTheDocument();
   });
 
   it('stores consent when the User ticks the box', async () => {
@@ -248,13 +261,13 @@ describe('App: Contact consent', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: /SecMinds may email me/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(userRecord.saveContactConsent).toHaveBeenCalledWith(true);
-    expect(await screen.findByRole('heading', { name: 'Signed in' })).toBeInTheDocument();
+    expect(await findPageHeading('Overview')).toBeInTheDocument();
   });
 
   it('does not ask a returning User again', async () => {
     const userRecord = fakeUserRecord();
     renderApp(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
-    expect(await screen.findByRole('heading', { name: 'Signed in' })).toBeInTheDocument();
+    expect(await findPageHeading('Overview')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(userRecord.saveContactConsent).not.toHaveBeenCalled();
   });
@@ -271,7 +284,7 @@ describe('App: Contact consent', () => {
     renderApp(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('HTTP 503');
-    expect(screen.queryByRole('heading', { name: 'Signed in' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument();
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('checkbox')).toBeInTheDocument();
   });
@@ -284,7 +297,7 @@ describe('App: Contact consent', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 500');
     expect(screen.getByRole('checkbox', { name: /SecMinds may email me/i })).toBeChecked();
-    expect(screen.queryByRole('heading', { name: 'Signed in' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument();
   });
 });
 
@@ -298,7 +311,7 @@ describe('App: sign-in requested from the website', () => {
   it('does not sign in again for a User who is already signed in', async () => {
     const client = fakeClient(async () => ada);
     renderApp(<App signIn={setup(client)} adminConsentResult={null} signInRequested />);
-    await screen.findByRole('heading', { name: 'Signed in' });
+    await findPageHeading('Overview');
     expect(client.signIn).not.toHaveBeenCalled();
   });
 
@@ -393,9 +406,10 @@ describe('App: Settings and the User record', () => {
 
   it('shows a signed-in User their stored User record on Settings, opened from the user menu', async () => {
     renderApp(<App signIn={setup(signedIn())} adminConsentResult={null} />);
-    await screen.findByRole('heading', { name: 'Signed in' });
+    await findPageHeading('Overview');
     await openUserMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
+    expect(await findPageHeading('Settings')).toBeInTheDocument();
     expect(screen.getByRole('main')).toHaveFocus();
     expect(screen.queryByRole('heading', { name: 'Privacy notice' })).toBeNull();
     const card = (await screen.findByRole('heading', { name: 'Your User record' })).closest('article') as HTMLElement;
@@ -437,7 +451,7 @@ describe('App: Settings and the User record', () => {
     expect(done).toHaveTextContent('Nothing about you remains in storage');
     expect(screen.queryByRole('heading', { name: 'Your User record' })).toBeNull();
     navigateTo('/app/');
-    expect(screen.queryByRole('heading', { name: 'Signed in' })).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
     expect(signIn.checkReadiness).not.toHaveBeenCalled();
     fireEvent.click(within(done).getByRole('button', { name: 'Sign out' }));
     expect(client.signOut).toHaveBeenCalled();
@@ -462,7 +476,7 @@ describe('App: Settings and the User record', () => {
 });
 
 describe('App: admin page', () => {
-  const frans: SignedInUser = { name: 'Frans', username: 'frans@secminds.nl', homeTenantId: ada.homeTenantId, email: 'frans@secminds.nl', admin: true };
+  const frans: SignedInUser = { name: 'Frans', username: 'frans@secminds.nl', homeTenantId: ada.homeTenantId, tenantId: ada.homeTenantId, email: 'frans@secminds.nl', admin: true };
   const users: UserRecord[] = [
     storedRecord,
     { ...storedRecord, username: 'grace@fabrikam.com', firstName: '<b>Grace</b>', lastName: '', contactConsent: true },
@@ -470,24 +484,46 @@ describe('App: admin page', () => {
 
   it('shows Admin in the user menu only to a User whose ID token has the Admin role', async () => {
     const { unmount } = renderApp(<App signIn={setup(fakeClient(async () => ada))} adminConsentResult={null} />);
-    await screen.findByRole('heading', { name: 'Signed in' });
+    await findPageHeading('Overview');
     await openUserMenu();
     expect(screen.queryByRole('menuitem', { name: 'Admin' })).toBeNull();
     unmount();
 
     renderApp(<App signIn={setup(fakeClient(async () => frans))} adminConsentResult={null} />);
-    await screen.findByRole('heading', { name: 'Signed in' });
+    await findPageHeading('Overview');
     await openUserMenu();
     expect(screen.getByRole('menuitem', { name: 'Admin' })).toHaveAttribute('href', 'http://localhost:3000/app/admin');
+  });
+
+  it('shows the SecMinds admin pages in the sidebar only to a User whose ID token has the Admin role', async () => {
+    const { unmount } = renderApp(<App signIn={setup(fakeClient(async () => ada))} adminConsentResult={null} />);
+    expect(within(await sidebar()).queryByRole('list', { name: 'SecMinds admin' })).toBeNull();
+    unmount();
+
+    renderApp(<App signIn={setup(fakeClient(async () => frans))} adminConsentResult={null} />);
+    const admin = within(await sidebar()).getByRole('list', { name: 'SecMinds admin' });
+    expect(within(admin).getByRole('link', { name: 'Admin overview' })).toHaveAttribute('href', 'http://localhost:3000/app/admin');
+    expect(within(admin).getByRole('link', { name: 'User records' })).toHaveAttribute('href', 'http://localhost:3000/app/admin/users');
+  });
+
+  it('opens User records from the sidebar', async () => {
+    const userRecord = fakeUserRecord();
+    vi.mocked(userRecord.listUserRecords).mockResolvedValue({ status: 'allowed', users });
+    goTo('/app/admin');
+    renderApp(<App signIn={setup(fakeClient(async () => frans), userRecord)} adminConsentResult={null} />);
+    await openPage('User records');
+    expect(await findPageHeading('User records')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/app/admin/users');
+    expect(await screen.findByText('grace@fabrikam.com')).toBeInTheDocument();
   });
 
   it('opens the admin page from the user menu without signing in again', async () => {
     const client = fakeClient(async () => frans);
     renderApp(<App signIn={setup(client)} adminConsentResult={null} />);
-    await screen.findByRole('heading', { name: 'Signed in' });
+    await findPageHeading('Overview');
     await openUserMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Admin' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Admin' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Admin overview' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/app/admin');
     expect(screen.getByRole('main')).toHaveFocus();
     expect(client.start).toHaveBeenCalledOnce();
@@ -565,11 +601,12 @@ describe('App: onboarding check', () => {
     expect(await screen.findByText('Checking your Tenant…')).toBeInTheDocument();
   });
 
-  it('continues to the Analysis for a Supported tenant and a User with the right roles', async () => {
+  it('continues to the Analysis for a Supported tenant and a User with the right roles, with the Tenant status bar', async () => {
     renderWith(async () => ({ status: 'ready', devices: 12 }));
-    expect(await screen.findByRole('heading', { name: 'Ready for an Analysis' })).toBeInTheDocument();
-    expect(screen.getByText(/advanced hunting shows 12 devices/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Signed in' })).toBeInTheDocument();
+    const status = await screen.findByRole('region', { name: 'Tenant' });
+    expect(within(status).getByText(ada.tenantId)).toBeInTheDocument();
+    expect(within(status).getByText('12')).toBeInTheDocument();
+    expect(await within(status).findByRole('button', { name: 'Read again' })).toBeEnabled();
   });
 
   it('explains Plan 2 and Defender for Business when the Tenant has no advanced hunting', async () => {
@@ -578,7 +615,7 @@ describe('App: onboarding check', () => {
     expect(screen.getByText(/Defender for Endpoint Plan 2/)).toBeInTheDocument();
     expect(screen.getByText(/Defender for Business/)).toBeInTheDocument();
     expect(screen.getByText("'DeviceInfo' could not be resolved.")).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Ready for an Analysis' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Tenant' })).not.toBeInTheDocument();
   });
 
   it('says there is nothing to analyse yet when there are no onboarded devices, without calling the Tenant unsupported', async () => {
@@ -641,9 +678,9 @@ describe('App: ASR rules', () => {
 
   it('reads the ASR rules once the Tenant is ready, and lists them', async () => {
     const signIn = setup(signedIn());
+    goTo('/app/rules');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    await openTab('ASR rules');
-    expect(await screen.findByRole('heading', { name: 'ASR rules' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Rule mode and Coverage per ASR rule' })).toBeInTheDocument();
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
     expect(within(screen.getByRole('table', { name: /Rule mode from the Tenant/ })).getAllByText('0 of 12 devices')).toHaveLength(19);
   });
@@ -656,15 +693,15 @@ describe('App: ASR rules', () => {
   });
 
   it('says it is reading the ASR rules', async () => {
+    goTo('/app/rules');
     renderApp(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
-    await openTab('ASR rules');
     expect(await screen.findByText('Reading the Intune policies and the Rule modes devices report…')).toBeInTheDocument();
   });
 
   it('shows why the ASR rules could not be read and lets the User try again', async () => {
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => Promise.reject(new Error('Microsoft Graph answered HTTP 503.')));
+    goTo('/app/rules');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    await openTab('ASR rules');
     const alert = await alertWith('The ASR rules could not be read');
     expect(alert).toHaveTextContent('HTTP 503');
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
@@ -677,9 +714,9 @@ describe('App: Audit events', () => {
 
   it('reads the Audit events once the Tenant is ready, and shows them', async () => {
     const signIn = setup(signedIn());
+    goTo('/app/events');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    await openTab('Audit events');
-    expect(await screen.findByRole('heading', { name: 'Audit events' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Audit events per ASR rule' })).toBeInTheDocument();
     expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
     expect(screen.getByText('No Audit events in the last 30 days')).toBeInTheDocument();
   });
@@ -692,16 +729,16 @@ describe('App: Audit events', () => {
   });
 
   it('says it is counting the Audit events', async () => {
+    goTo('/app/events');
     renderApp(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
-    await openTab('Audit events');
     expect(await screen.findByText('Counting Audit events in advanced hunting…')).toBeInTheDocument();
   });
 
   it('shows why the Audit events could not be read, such as throttling, and lets the User try again', async () => {
     const throttled = new Error('Advanced hunting is throttled: wait a few minutes and try again.');
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, async () => Promise.reject(throttled));
+    goTo('/app/events');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    await openTab('Audit events');
     const alert = await alertWith('The Audit events could not be read');
     expect(alert).toHaveTextContent('The Audit events could not be read');
     expect(alert).toHaveTextContent('Advanced hunting is throttled');
@@ -710,44 +747,119 @@ describe('App: Audit events', () => {
   });
 });
 
-describe('App: Analysis tabs', () => {
+describe('App: pages of the Analysis', () => {
   const signedIn = () => fakeClient(async () => ada);
 
-  it('shows the Verdicts tab first, with the Suggested policy in it', async () => {
+  it('starts on the Overview, with the sidebar marking it as the page shown', async () => {
     renderApp(<App signIn={setup(signedIn())} adminConsentResult={null} />);
-    expect(await screen.findByRole('tab', { name: 'Verdicts' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'ASR rules' })).toHaveAttribute('aria-selected', 'false');
-    expect(await screen.findByRole('heading', { name: 'Verdicts' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Suggested policy' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Audit events' })).toBeNull();
+    expect(await findPageHeading('Overview')).toBeInTheDocument();
+    const nav = await sidebar();
+    expect(within(nav).getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('link', { name: 'Verdicts' })).toHaveAttribute('href', 'http://localhost:3000/app/verdicts');
+    expect(within(nav).getByRole('link', { name: 'Suggested policy' })).toHaveAttribute('href', 'http://localhost:3000/app/policy');
+    expect(within(nav).getByRole('link', { name: 'ASR rules' })).toHaveAttribute('href', 'http://localhost:3000/app/rules');
+    expect(within(nav).getByRole('link', { name: 'Audit events' })).toHaveAttribute('href', 'http://localhost:3000/app/events');
+    expect(within(nav).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', 'http://localhost:3000/app/settings');
+    expect(within(nav).getByRole('list', { name: 'Analysis' })).toBeInTheDocument();
+    expect(within(nav).queryByRole('list', { name: 'SecMinds admin' })).toBeNull();
   });
 
-  it('switches tabs without reading Graph again', async () => {
+  it('moves between pages without reading Graph again, and moves focus to the page', async () => {
     const signIn = setup(signedIn());
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    await screen.findByRole('heading', { name: 'Verdicts' });
-    await openTab('ASR rules');
-    expect(await screen.findByRole('heading', { name: 'ASR rules' })).toBeInTheDocument();
-    await openTab('Audit events');
-    expect(await screen.findByRole('heading', { name: 'Audit events' })).toBeInTheDocument();
-    await openTab('Verdicts');
-    expect(await screen.findByRole('heading', { name: 'Verdicts' })).toBeInTheDocument();
+    await findPageHeading('Overview');
+    await openPage('ASR rules');
+    expect(await findPageHeading('ASR rules')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/app/rules');
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(within(await sidebar()).getByRole('link', { name: 'ASR rules' })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('heading', { name: 'Rule mode and Coverage per ASR rule' })).toBeInTheDocument();
+    await openPage('Audit events');
+    expect(await screen.findByRole('heading', { name: 'Audit events per ASR rule' })).toBeInTheDocument();
+    await openPage('Verdicts');
+    expect(await screen.findByRole('heading', { name: 'Verdict per ASR rule' })).toBeInTheDocument();
+    await openPage('Suggested policy');
+    expect(await findPageHeading('Suggested policy')).toBeInTheDocument();
+    await openPage('Settings');
+    expect(await screen.findByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+    await openPage('Overview');
+    expect(await findPageHeading('Overview')).toBeInTheDocument();
+    expect(signIn.checkReadiness).toHaveBeenCalledOnce();
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
     expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
     expect(signIn.loadAuditPeriods).toHaveBeenCalledOnce();
   });
 
-  it('keeps a part that is still loading when the User switches away and back', async () => {
+  it('keeps a part that is still loading when the User moves away and back', async () => {
     let finish: (events: AuditEvents) => void = () => {};
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, () => new Promise((resolve) => (finish = resolve)));
+    goTo('/app/events');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    await openTab('Audit events');
     expect(await screen.findByText('Counting Audit events in advanced hunting…')).toBeInTheDocument();
-    await openTab('Verdicts');
-    finish(auditEventsFromRows([], []));
-    await openTab('Audit events');
+    await openPage('Verdicts');
+    await act(async () => finish(auditEventsFromRows([], [])));
+    await openPage('Audit events');
     expect(await screen.findByText('No Audit events in the last 30 days')).toBeInTheDocument();
     expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
+  });
+
+  it('reads every part again on Read again, and says when it was read', async () => {
+    const signIn = setup(signedIn());
+    renderApp(<App signIn={signIn} adminConsentResult={null} />);
+    const status = await screen.findByRole('region', { name: 'Tenant' });
+    await waitFor(() => expect(within(status).getByRole('button', { name: 'Read again' })).toBeEnabled());
+    expect(within(status).queryByText('Reading…')).toBeNull();
+    expect(within(status).getByText('Observation window')).toBeInTheDocument();
+    fireEvent.click(within(status).getByRole('button', { name: 'Read again' }));
+    expect(within(status).getByText('Reading…')).toBeInTheDocument();
+    await waitFor(() => expect(signIn.loadAuditPeriods).toHaveBeenCalledTimes(2));
+    expect(signIn.loadRuleOverview).toHaveBeenCalledTimes(2);
+    expect(signIn.loadAuditEvents).toHaveBeenCalledTimes(2);
+    expect(signIn.checkReadiness).toHaveBeenCalledOnce();
+  });
+
+  it('does not check the Tenant or read the Analysis until a page of the Analysis is opened', async () => {
+    const signIn = setup(signedIn());
+    goTo('/app/settings');
+    renderApp(<App signIn={signIn} adminConsentResult={null} />);
+    expect(await screen.findByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+    expect(signIn.checkReadiness).not.toHaveBeenCalled();
+    await openPage('Verdicts');
+    await waitFor(() => expect(signIn.loadRuleOverview).toHaveBeenCalledOnce());
+    expect(signIn.checkReadiness).toHaveBeenCalledOnce();
+  });
+
+  it('shows the onboarding message on every page of the Analysis while the Tenant is not ready, and keeps Settings reachable', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), async () => ({ status: 'no-devices' }));
+    goTo('/app/verdicts');
+    renderApp(<App signIn={signIn} adminConsentResult={null} />);
+    expect(await screen.findByRole('heading', { name: 'No devices to analyse yet' })).toBeInTheDocument();
+    await openPage('ASR rules');
+    expect(await screen.findByRole('heading', { name: 'No devices to analyse yet' })).toBeInTheDocument();
+    await openPage('Settings');
+    expect(await screen.findByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+    expect(signIn.loadRuleOverview).not.toHaveBeenCalled();
+  });
+
+  it('shows the admin consent guidance and sign-in errors on every page, not only the home page', async () => {
+    goTo('/app/verdicts');
+    const { unmount } = renderApp(<App signIn={setup(fakeClient(async () => Promise.reject(consentError)))} adminConsentResult={null} />);
+    expect(await screen.findByRole('link', { name: /grant admin consent/i })).toHaveAttribute('href', consentUrl);
+    unmount();
+
+    goTo('/app/settings');
+    renderApp(<App signIn={setup(fakeClient(async () => Promise.reject(new Error('AADSTS50011: The redirect URI does not match.'))))} adminConsentResult={null} />);
+    expect(await alertWith('Sign-in failed')).toHaveTextContent('AADSTS50011');
+  });
+
+  it('asks a signed-out User to sign in on a page of the Analysis, without reading anything', async () => {
+    const signIn = setup(fakeClient(async () => null));
+    goTo('/app/verdicts');
+    renderApp(<App signIn={signIn} adminConsentResult={null} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Verdicts' })).toBeInTheDocument();
+    expect(await screen.findByText(/Sign in to run an Analysis/)).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
+    expect(signIn.checkReadiness).not.toHaveBeenCalled();
   });
 });
 
@@ -765,8 +877,9 @@ describe('App: Verdicts', () => {
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => ({
       [ADOBE]: { devices: 12, shortestDays: 20 },
     }));
+    goTo('/app/verdicts');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    expect(await screen.findByRole('heading', { name: 'Verdicts' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Verdict per ASR rule' })).toBeInTheDocument();
     const verdicts = screen.getByRole('table', { name: /Verdict, Coverage and reason/ });
     const adobe = within(verdicts).getByRole('cell', { name: 'Block Adobe Reader from creating child processes' }).closest('tr') as HTMLElement;
     expect(within(adobe).getByText('Ready to block')).toBeInTheDocument();
@@ -776,12 +889,13 @@ describe('App: Verdicts', () => {
     expect(signIn.loadAuditPeriods).toHaveBeenCalledOnce();
   });
 
-  it('offers the Suggested policy with the rules that are ready, under the Verdicts', async () => {
+  it('offers the Suggested policy with the rules that are ready, on its own page', async () => {
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => ({
       [ADOBE]: { devices: 12, shortestDays: 20 },
     }));
+    goTo('/app/policy');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    expect(await screen.findByRole('heading', { name: 'Suggested policy' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Rules the Suggested policy sets to Block mode' })).toBeInTheDocument();
     const policy = screen.getByRole('table', { name: /Suggested policy sets to Block mode/ });
     expect(within(policy).getByRole('cell', { name: 'Block Adobe Reader from creating child processes' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Download Suggested policy/ })).toBeInTheDocument();
@@ -789,26 +903,29 @@ describe('App: Verdicts', () => {
 
   it('gives no Verdicts when the Coverage query failed, rather than No evidence for every rule', async () => {
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => ({ ...adobeInAudit, coverage: { failed: 'Advanced hunting did not answer.' } }));
+    goTo('/app/verdicts');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
     const alert = await alertWith('No Verdicts');
     expect(alert).toHaveTextContent('Coverage: Advanced hunting did not answer.');
-    expect(screen.queryByRole('heading', { name: 'Verdicts' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Verdict per ASR rule' })).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(signIn.loadRuleOverview).toHaveBeenCalledTimes(2));
   });
 
   it('says it is working out the Verdicts while a part is still loading', async () => {
+    goTo('/app/verdicts');
     renderApp(<App signIn={setup(signedIn(), fakeUserRecord(), undefined, undefined, undefined, () => new Promise(() => {}))} adminConsentResult={null} />);
     expect(await screen.findByText('Working out a Verdict per ASR rule…')).toBeInTheDocument();
   });
 
   it('gives no Verdicts when a part could not be read, says which, and lets the User try that part again', async () => {
     const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, undefined, async () => Promise.reject(new Error('Advanced hunting is throttled.')));
+    goTo('/app/verdicts');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('No Verdicts');
     expect(alert).toHaveTextContent('how long rules have been in Audit mode: Advanced hunting is throttled.');
-    expect(screen.queryByRole('heading', { name: 'Verdicts' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Verdict per ASR rule' })).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(signIn.loadAuditPeriods).toHaveBeenCalledTimes(2));
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();

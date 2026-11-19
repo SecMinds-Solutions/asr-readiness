@@ -49,7 +49,7 @@ export function AuditEventsView({ events: { rules, notInAdvancedHunting } }: { e
   const withEvents = rules.filter((entry) => entry.events > 0);
   const incomplete = rules.filter((entry) => !entry.complete);
   return (
-    <Card title="Audit events">
+    <Card title="Audit events per ASR rule">
       <p className="app-text">
         Audit events in {observationWindow}, per ASR rule, application and path. Advanced hunting counts them; the events themselves are
         not downloaded, and nothing leaves your browser.

@@ -27,17 +27,6 @@ body,
   outline: none;
 }
 
-.app-tabs {
-  width: 100%;
-}
-
-.app-tabs [role='tabpanel'] {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding-top: var(--space-4);
-}
-
 .app-stats {
   display: flex;
   flex-wrap: wrap;
@@ -168,6 +157,115 @@ html {
 
 .app-header .sm-menu-header {
   overflow-wrap: anywhere;
+}
+
+/* User menu: the User's name gives way to their avatar at phone width, so the header stays one row. */
+@media (max-width: 480px) {
+  .app-header:not(.website-header) .sm-navbar {
+    column-gap: var(--space-2);
+  }
+
+  .app-header:not(.website-header) .sm-navbar-actions {
+    gap: var(--space-1);
+  }
+
+  .app-header:not(.website-header) .app-brand-name {
+    font-size: 16px;
+  }
+
+  .app-header .sm-menu-trigger {
+    padding: var(--space-1);
+  }
+
+  .app-header .sm-menu-trigger > span:not(.sm-avatar),
+  .app-header .sm-menu-trigger > svg {
+    display: none;
+  }
+}
+
+/* On the smallest phones the Preview badge gives way too. */
+@media (max-width: 400px) {
+  .app-header:not(.website-header) .app-brand .sm-badge {
+    display: none;
+  }
+}
+
+/* The signed-in app: the sidebar beside the page, stacked on narrow screens (AppLayout). */
+.app-layout {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* The sidebar stays in view below the header, which also stays at the top. */
+.app-layout .sm-applayout-side {
+  top: calc(var(--space-16) + var(--space-6));
+  max-height: calc(100vh - var(--space-16) - var(--space-12));
+}
+
+.app-page {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.app-page:focus {
+  outline: none;
+}
+
+.app-page > * {
+  max-width: 100%;
+}
+
+.app-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.app-heading .app-lead {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+/* Tenant status bar: what every page of the Analysis speaks for. */
+.app-status {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.app-status-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  min-width: 0;
+}
+
+.app-status-list dt {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+.app-status-list dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink);
 }
 
 /* Footer of the website and the app. */

@@ -1,4 +1,7 @@
 import type * as React from 'react';
+/** Width in px below which SideNav and AppLayout collapse. */
+export declare const SIDENAV_BREAKPOINT: 768;
+export interface SideNavItem { label: string; icon?: string; href?: string; active?: boolean }
 export interface LogoProps { kind?: 'full' | 'mark'; variant?: 'auto' | 'color' | 'white' | 'black'; height?: number; title?: string }
 export declare function Logo(props: LogoProps): React.ReactElement | null;
 export interface StripeBarProps { height?: number }
@@ -45,8 +48,10 @@ export interface NavbarProps { brand?: React.ReactNode; links?: { label: string;
 export declare function Navbar(props: NavbarProps): React.ReactElement | null;
 export interface MenuProps { label?: React.ReactNode; ariaLabel?: string; icon?: string; avatar?: string; variant?: 'primary' | 'secondary' | 'sky' | 'ghost' | 'danger'; size?: 'sm' | 'md' | 'lg'; header?: React.ReactNode; items: ({ label: React.ReactNode; icon?: string; href?: string; onSelect?: (e: any) => void; danger?: boolean; disabled?: boolean } | { heading: string } | { divider: true })[]; align?: 'start' | 'end'; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void }
 export declare function Menu(props: MenuProps): React.ReactElement | null;
-export interface SideNavProps { items: { label: string; icon?: string; href?: string; active?: boolean }[] }
+export type SideNavProps = { items?: SideNavItem[]; groups?: { label?: string; items: SideNavItem[] }[]; label?: string; menuLabel?: string; dividers?: boolean; collapsed?: boolean; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void } & Omit<React.HTMLAttributes<HTMLElement>, 'children'>;
 export declare function SideNav(props: SideNavProps): React.ReactElement | null;
+export type AppLayoutProps = { sidebar: React.ReactNode; children?: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>;
+export declare function AppLayout(props: AppLayoutProps): React.ReactElement | null;
 export interface BreadcrumbProps { items: { label: string; href?: string }[] }
 export declare function Breadcrumb(props: BreadcrumbProps): React.ReactElement | null;
 export interface TabsProps { tabs: { value: string; label: string; content: React.ReactNode }[]; value?: string; defaultValue?: string; onChange?: (v: string) => void }
@@ -85,4 +90,4 @@ export interface DialogProps { open: boolean; title: string; onClose?: () => voi
 export declare function Dialog(props: DialogProps): React.ReactElement | null;
 export interface EmptyStateProps { icon?: string; title: string; action?: React.ReactNode; children?: React.ReactNode }
 export declare function EmptyState(props: EmptyStateProps): React.ReactElement | null;
-declare global { interface Window { SecMinds: { Logo: typeof Logo; StripeBar: typeof StripeBar; SlideFrame: typeof SlideFrame; HeroPanel: typeof HeroPanel; WaveDivider: typeof WaveDivider; PageFooter: typeof PageFooter; ContactBlock: typeof ContactBlock; NumberBadge: typeof NumberBadge; Icon: typeof Icon; Avatar: typeof Avatar; Divider: typeof Divider; Button: typeof Button; IconButton: typeof IconButton; TextLink: typeof TextLink; Field: typeof Field; Input: typeof Input; Textarea: typeof Textarea; Select: typeof Select; Checkbox: typeof Checkbox; Radio: typeof Radio; Switch: typeof Switch; Navbar: typeof Navbar; Menu: typeof Menu; SideNav: typeof SideNav; Breadcrumb: typeof Breadcrumb; Tabs: typeof Tabs; Pagination: typeof Pagination; Card: typeof Card; Stat: typeof Stat; Table: typeof Table; QuoteFrame: typeof QuoteFrame; Accordion: typeof Accordion; BarChart: typeof BarChart; DonutChart: typeof DonutChart; Badge: typeof Badge; Alert: typeof Alert; Toast: typeof Toast; Progress: typeof Progress; Spinner: typeof Spinner; Skeleton: typeof Skeleton; Tooltip: typeof Tooltip; Dialog: typeof Dialog; EmptyState: typeof EmptyState; iconNames: string[] } } }
+declare global { interface Window { SecMinds: { Logo: typeof Logo; StripeBar: typeof StripeBar; SlideFrame: typeof SlideFrame; HeroPanel: typeof HeroPanel; WaveDivider: typeof WaveDivider; PageFooter: typeof PageFooter; ContactBlock: typeof ContactBlock; NumberBadge: typeof NumberBadge; Icon: typeof Icon; Avatar: typeof Avatar; Divider: typeof Divider; Button: typeof Button; IconButton: typeof IconButton; TextLink: typeof TextLink; Field: typeof Field; Input: typeof Input; Textarea: typeof Textarea; Select: typeof Select; Checkbox: typeof Checkbox; Radio: typeof Radio; Switch: typeof Switch; Navbar: typeof Navbar; Menu: typeof Menu; SideNav: typeof SideNav; AppLayout: typeof AppLayout; Breadcrumb: typeof Breadcrumb; Tabs: typeof Tabs; Pagination: typeof Pagination; Card: typeof Card; Stat: typeof Stat; Table: typeof Table; QuoteFrame: typeof QuoteFrame; Accordion: typeof Accordion; BarChart: typeof BarChart; DonutChart: typeof DonutChart; Badge: typeof Badge; Alert: typeof Alert; Toast: typeof Toast; Progress: typeof Progress; Spinner: typeof Spinner; Skeleton: typeof Skeleton; Tooltip: typeof Tooltip; Dialog: typeof Dialog; EmptyState: typeof EmptyState; iconNames: string[]; SIDENAV_BREAKPOINT: 768 } } }
