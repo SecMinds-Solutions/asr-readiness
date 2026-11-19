@@ -124,6 +124,12 @@ const sidebar = async () => screen.findByRole('navigation', { name: 'Main' });
 /** Opens a page from the sidebar, as a User clicking its link. */
 const openPage = async (name: string) => fireEvent.click(within(await sidebar()).getByRole('link', { name }));
 
+/** Opens Settings from the user menu, the only place it is linked from. */
+const openSettings = async () => {
+  await openUserMenu();
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
+};
+
 /** The heading of a page of the signed-in app, once the sidebar shows: before it, a loading page has the same heading. */
 const findPageHeading = async (name: string) => {
   await sidebar();
@@ -765,7 +771,7 @@ describe('App: pages of the Analysis', () => {
     expect(within(nav).getByRole('link', { name: 'Suggested policy' })).toHaveAttribute('href', 'http://localhost:3000/app/policy');
     expect(within(nav).getByRole('link', { name: 'ASR rules' })).toHaveAttribute('href', 'http://localhost:3000/app/rules');
     expect(within(nav).getByRole('link', { name: 'Audit events' })).toHaveAttribute('href', 'http://localhost:3000/app/events');
-    expect(within(nav).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', 'http://localhost:3000/app/settings');
+    expect(within(nav).queryByRole('link', { name: 'Settings' })).toBeNull();
     expect(within(nav).getByRole('list', { name: 'Analysis' })).toBeInTheDocument();
     expect(within(nav).queryByRole('list', { name: 'SecMinds admin' })).toBeNull();
   });
@@ -786,7 +792,7 @@ describe('App: pages of the Analysis', () => {
     expect(await screen.findByRole('heading', { name: 'Verdict per ASR rule' })).toBeInTheDocument();
     await openPage('Suggested policy');
     expect(await findPageHeading('Suggested policy')).toBeInTheDocument();
-    await openPage('Settings');
+    await openSettings();
     expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
     await openPage('Overview');
     expect(await findPageHeading('Overview')).toBeInTheDocument();
@@ -842,7 +848,7 @@ describe('App: pages of the Analysis', () => {
     expect(await screen.findByRole('heading', { name: 'No devices to analyse yet' })).toBeInTheDocument();
     await openPage('ASR rules');
     expect(await screen.findByRole('heading', { name: 'No devices to analyse yet' })).toBeInTheDocument();
-    await openPage('Settings');
+    await openSettings();
     expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
     expect(signIn.loadRuleOverview).not.toHaveBeenCalled();
   });

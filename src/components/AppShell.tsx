@@ -27,7 +27,7 @@ export const PAGE_HEADINGS: Record<AppPage, { title: string; description: string
   'admin-users': { title: 'User records', description: 'Every User record, to read and export. Only SecMinds admins can see them.' },
 };
 
-/** The sidebar: the Analysis, the SecMinds admin pages for admins only, and Settings. */
+/** The sidebar: the Analysis, and the SecMinds admin pages for admins only. Settings is in the user menu. */
 function AppNav({ page, admin }: { page: AppPage; admin: boolean }) {
   const { href } = useNavigation();
   const item = (target: AppPage, label: string, icon: string) => ({
@@ -59,7 +59,6 @@ function AppNav({ page, admin }: { page: AppPage; admin: boolean }) {
               },
             ]
           : []),
-        { items: [item('settings', 'Settings', 'settings')] },
       ]}
     />
   );
