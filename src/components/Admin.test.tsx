@@ -30,23 +30,25 @@ const statValue = (label: string) =>
   screen.getByText(label, { selector: '.sm-stat span' }).parentElement?.querySelector('strong')?.textContent;
 
 describe('AdminPage: filter and counts', () => {
-  it('shows the total, the Users with Contact consent and the number of Home tenants', async () => {
-    render(<AdminPage client={client(users)} />);
-    await screen.findByRole('table', { name: 'Every stored User record' });
+  it('shows the total, the Users with Contact consent and the number of Home tenants on the Admin overview', async () => {
+    render(<AdminPage client={client(users)} view="overview" />);
+    await screen.findByRole('table', { name: 'Users per Home tenant' });
+    expect(screen.queryByRole('table', { name: 'Every stored User record' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'See every User record' })).toHaveAttribute('href', 'https://app.asrcompass.cloud/admin/users');
     expect(statValue('Users')).toBe('3');
     expect(statValue('With Contact consent')).toBe('1');
     expect(statValue('Home tenants')).toBe('2');
   });
 
   it('lists the number of Users per Home tenant, most first', async () => {
-    render(<AdminPage client={client(users)} />);
+    render(<AdminPage client={client(users)} view="overview" />);
     const perTenant = await screen.findByRole('table', { name: 'Users per Home tenant' });
     const rows = within(perTenant).getAllByRole('row').slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([`${tenantA}2`, `${tenantB}1`]);
   });
 
   it('narrows the table to Users with Contact consent, and shows all again when turned off', async () => {
-    render(<AdminPage client={client(users)} />);
+    render(<AdminPage client={client(users)} view="users" />);
     const table = await screen.findByRole('table', { name: 'Every stored User record' });
     expect(within(table).getAllByRole('row')).toHaveLength(4);
 
@@ -56,22 +58,26 @@ describe('AdminPage: filter and counts', () => {
     expect(within(filtered).getAllByRole('row')).toHaveLength(2);
     expect(within(filtered).getAllByText('ada@a.com').length).toBeGreaterThan(0);
     expect(within(filtered).queryByText('grace@b.com')).toBeNull();
-    expect(statValue('Users')).toBe('3');
 
     fireEvent.click(filter);
     expect(within(screen.getByRole('table', { name: 'Every stored User record' })).getAllByRole('row')).toHaveLength(4);
   });
 
   it('says so when no User gave Contact consent and the filter is on', async () => {
-    render(<AdminPage client={client([user('grace@b.com', tenantB, false)])} />);
+    render(<AdminPage client={client([user('grace@b.com', tenantB, false)])} view="users" />);
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Only Users with Contact consent' }));
     expect(screen.getByText('No Users with Contact consent')).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Every stored User record' })).toBeNull();
   });
 
-  it('shows zero counts and the empty state without records', async () => {
-    render(<AdminPage client={client([])} />);
+  it('shows the empty state on User records without records', async () => {
+    render(<AdminPage client={client([])} view="users" />);
     expect(await screen.findByText('No User records yet')).toBeInTheDocument();
+  });
+
+  it('shows zero counts on the Admin overview without records', async () => {
+    render(<AdminPage client={client([])} view="overview" />);
+    await screen.findByText('Home tenants');
     expect(statValue('Users')).toBe('0');
     expect(statValue('With Contact consent')).toBe('0');
     expect(statValue('Home tenants')).toBe('0');
@@ -79,10 +85,23 @@ describe('AdminPage: filter and counts', () => {
   });
 });
 
+describe('AdminPage: two pages, one read', () => {
+  it('reads the User records once while the admin moves between Admin overview and User records', async () => {
+    const records = client(users);
+    const { rerender } = render(<AdminPage client={records} view="overview" />);
+    await screen.findByRole('table', { name: 'Users per Home tenant' });
+    rerender(<AdminPage client={records} view="users" />);
+    expect(screen.getByRole('table', { name: 'Every stored User record' })).toBeInTheDocument();
+    rerender(<AdminPage client={records} view="overview" />);
+    expect(screen.getByRole('table', { name: 'Users per Home tenant' })).toBeInTheDocument();
+    expect(records.listUserRecords).toHaveBeenCalledOnce();
+  });
+});
+
 describe('AdminPage: CSV export', () => {
   const download = async (records: UserRecord[], filter = false) => {
     const saveFile = vi.fn();
-    render(<AdminPage client={client(records)} saveFile={saveFile} />);
+    render(<AdminPage client={client(records)} view="users" saveFile={saveFile} />);
     await screen.findByRole('table', { name: 'Every stored User record' });
     if (filter) fireEvent.click(screen.getByRole('checkbox', { name: 'Only Users with Contact consent' }));
     fireEvent.click(screen.getByRole('button', { name: /Download CSV/ }));
@@ -107,7 +126,7 @@ describe('AdminPage: CSV export', () => {
   });
 
   it('offers no download when no row is shown', async () => {
-    render(<AdminPage client={client([])} saveFile={vi.fn()} />);
+    render(<AdminPage client={client([])} view="users" saveFile={vi.fn()} />);
     await screen.findByText('No User records yet');
     expect(screen.queryByRole('button', { name: /Download CSV/ })).toBeNull();
   });

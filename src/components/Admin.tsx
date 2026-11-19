@@ -3,10 +3,11 @@ import { SecMinds } from '../design-system';
 import type { UserRecord, UserRecordClient } from '../user-record/client';
 import { USER_RECORDS_CSV_TYPE, userRecordsCsv, userRecordsCsvFileName } from '../user-record/csv';
 import { userRecordCounts, withContactConsent } from '../user-record/summary';
+import { useNavigation } from '../navigation';
 import { useLoad } from '../useLoad';
 import { saveInBrowser, type SaveFile } from './saveFile';
 
-const { Alert, Badge, Button, Card, Checkbox, EmptyState, Spinner, Stat, Table } = SecMinds;
+const { Alert, Badge, Button, Card, Checkbox, EmptyState, Spinner, Stat, Table, TextLink } = SecMinds;
 
 /** The date of a Contact consent choice as yyyy-mm-dd, the same for every admin. */
 const dateOf = (iso: string) => iso.slice(0, 10);
@@ -22,8 +23,23 @@ function ContactConsentCell({ user }: { user: UserRecord }) {
   );
 }
 
-/** Every User record, for SecMinds admins. Read-only: the API refuses everyone else. */
-export function AdminPage({ client, saveFile = saveInBrowser }: { client: UserRecordClient; saveFile?: SaveFile }) {
+/** Which admin page: the counts (Admin overview) or the records themselves (User records). */
+export type AdminView = 'overview' | 'users';
+
+/**
+ * The User records for SecMinds admins, read-only: the API refuses everyone else. The records are
+ * read once while the admin moves between Admin overview and User records, since this component
+ * stays in place for both; Try again reads them again.
+ */
+export function AdminPage({
+  client,
+  view,
+  saveFile = saveInBrowser,
+}: {
+  client: UserRecordClient;
+  view: AdminView;
+  saveFile?: SaveFile;
+}) {
   const load = useCallback(() => client.listUserRecords(), [client]);
   const { state, reload } = useLoad(load);
 
@@ -52,15 +68,23 @@ export function AdminPage({ client, saveFile = saveInBrowser }: { client: UserRe
           </Alert>
         );
       }
-      return <UserRecordsCard users={state.value.users} saveFile={saveFile} />;
+      return view === 'overview' ? (
+        <UserRecordCountsCard users={state.value.users} />
+      ) : (
+        <UserRecordsCard users={state.value.users} saveFile={saveFile} />
+      );
   }
 }
 
 /** How many Users there are, how many gave Contact consent, and how many per Home tenant. */
 function UserRecordCountsCard({ users }: { users: UserRecord[] }) {
+  const { href } = useNavigation();
   const counts = useMemo(() => userRecordCounts(users), [users]);
   return (
-    <Card title="Users">
+    <Card
+      title="Users"
+      footer={<TextLink href={href({ site: 'app', page: 'admin-users' })}>See every User record</TextLink>}
+    >
       <div className="app-stats">
         <Stat value={counts.total} label="Users" />
         <Stat value={counts.withContactConsent} label="With Contact consent" />
@@ -80,14 +104,13 @@ function UserRecordCountsCard({ users }: { users: UserRecord[] }) {
   );
 }
 
-/** The User records, optionally only those with Contact consent, with their counts above and a CSV of the rows shown. */
+/** The User records, optionally only those with Contact consent, with a CSV of the rows shown. */
 function UserRecordsCard({ users, saveFile }: { users: UserRecord[]; saveFile: SaveFile }) {
   const [onlyWithConsent, setOnlyWithConsent] = useState(false);
   const shown = useMemo(() => (onlyWithConsent ? withContactConsent(users) : users), [users, onlyWithConsent]);
   return (
     <>
-      <UserRecordCountsCard users={users} />
-      <Card title="User records">
+      <Card>
         <p className="app-text">Every stored User record. SecMinds admins can see them here, but not change or delete them.</p>
         <Checkbox
           label="Only Users with Contact consent"

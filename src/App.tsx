@@ -242,7 +242,7 @@ function Workspace({
   return (
     <ShellPage account={account} page={page} admin={user.admin}>
       {page === 'admin' || page === 'admin-users' ? (
-        <AdminPage client={setup.userRecord} />
+        <AdminPage client={setup.userRecord} view={page === 'admin' ? 'overview' : 'users'} />
       ) : page === 'settings' ? (
         <SettingsContent record={record} />
       ) : (

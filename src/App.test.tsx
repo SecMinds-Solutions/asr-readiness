@@ -518,6 +518,10 @@ describe('App: admin page', () => {
     expect(await findPageHeading('User records')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/app/admin/users');
     expect(await screen.findByText('grace@fabrikam.com')).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Users per Home tenant' })).toBeNull();
+    await openPage('Admin overview');
+    expect(await screen.findByRole('table', { name: 'Users per Home tenant' })).toBeInTheDocument();
+    expect(userRecord.listUserRecords).toHaveBeenCalledOnce();
   });
 
   it('opens the admin page from the user menu without signing in again', async () => {
@@ -535,7 +539,7 @@ describe('App: admin page', () => {
   it('lists every User record to an admin, as text', async () => {
     const userRecord = fakeUserRecord();
     vi.mocked(userRecord.listUserRecords).mockResolvedValue({ status: 'allowed', users });
-    goTo('/app/admin');
+    goTo('/app/admin/users');
     const { container } = renderApp(<App signIn={setup(fakeClient(async () => frans), userRecord)} adminConsentResult={null} />);
     const table = await screen.findByRole('table', { name: 'Every stored User record' });
     expect(within(table).getByText('grace@fabrikam.com')).toBeInTheDocument();
@@ -544,7 +548,6 @@ describe('App: admin page', () => {
     expect(within(table).getAllByText('2026-11-01')).toHaveLength(2);
     expect(container.querySelector('b')).toBeNull();
     expect(userRecord.listUserRecords).toHaveBeenCalledOnce();
-    expect(screen.queryByRole('heading', { name: 'Signed in' })).toBeNull();
   });
 
   it('says "not allowed" when the API refuses the User, also if they open the page by its address', async () => {
@@ -557,7 +560,7 @@ describe('App: admin page', () => {
   it('shows an empty state when there are no User records', async () => {
     const userRecord = fakeUserRecord();
     vi.mocked(userRecord.listUserRecords).mockResolvedValue({ status: 'allowed', users: [] });
-    goTo('/app/admin');
+    goTo('/app/admin/users');
     renderApp(<App signIn={setup(fakeClient(async () => frans), userRecord)} adminConsentResult={null} />);
     expect(await screen.findByText('No User records yet')).toBeInTheDocument();
   });
@@ -567,7 +570,7 @@ describe('App: admin page', () => {
     vi.mocked(userRecord.listUserRecords)
       .mockRejectedValueOnce(new Error('The User record service answered HTTP 500.'))
       .mockResolvedValue({ status: 'allowed', users });
-    goTo('/app/admin');
+    goTo('/app/admin/users');
     renderApp(<App signIn={setup(fakeClient(async () => frans), userRecord)} adminConsentResult={null} />);
     const alert = await alertWith('The User records could not be read');
     expect(alert).toHaveTextContent('HTTP 500');
