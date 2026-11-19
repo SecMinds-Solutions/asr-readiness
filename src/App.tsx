@@ -240,7 +240,7 @@ function Workspace({
   const analysis = useAnalysis(readiness.state.status === 'ready' ? setup : null);
 
   return (
-    <ShellPage account={account} page={page} admin={user.admin}>
+    <ShellPage account={account} page={page}>
       {page === 'admin' || page === 'admin-users' ? (
         <AdminPage client={setup.userRecord} view={page === 'admin' ? 'overview' : 'users'} />
       ) : page === 'settings' ? (

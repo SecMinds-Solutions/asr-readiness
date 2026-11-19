@@ -39,11 +39,13 @@ describe('UserMenu', () => {
     expect(items()[0]).toHaveFocus();
   });
 
-  it('shows Admin only to an admin', () => {
+  it('shows the SecMinds admin pages only to an admin, under their own heading', () => {
     const { button } = renderMenu(true);
     fireEvent.click(button);
-    expect(items().map((item) => item.textContent)).toEqual(['Settings', 'Admin', 'Privacy notice', 'Sign out']);
-    expect(within(menu()).getByRole('menuitem', { name: 'Admin' })).toHaveAttribute('href', 'https://app.asrcompass.cloud/admin');
+    expect(items().map((item) => item.textContent)).toEqual(['Settings', 'Privacy notice', 'Admin overview', 'User records', 'Sign out']);
+    expect(within(menu()).getByText('SecMinds admin')).toBeInTheDocument();
+    expect(within(menu()).getByRole('menuitem', { name: 'Admin overview' })).toHaveAttribute('href', 'https://app.asrcompass.cloud/admin');
+    expect(within(menu()).getByRole('menuitem', { name: 'User records' })).toHaveAttribute('href', 'https://app.asrcompass.cloud/admin/users');
   });
 
   it('opens from the keyboard and moves with the arrow keys', () => {

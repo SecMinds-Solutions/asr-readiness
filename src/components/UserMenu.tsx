@@ -8,8 +8,8 @@ export const userMenuLabel = (name: string) => `${name}, user menu`;
 
 /**
  * The signed-in User's menu, on the design system's `Menu`: their name and email address, Settings,
- * Admin (for SecMinds admins only; the API still decides who may see the User records), the privacy
- * notice and Sign out. `Menu` handles the keyboard, focus and closing.
+ * the privacy notice, for SecMinds admins the admin pages (Admin overview and User records), and Sign
+ * out. It is the only place Settings and the admin pages are linked from. `Menu` handles the keyboard, focus and closing.
  */
 export function UserMenu({
   user,
@@ -34,8 +34,16 @@ export function UserMenu({
       }
       items={[
         { label: 'Settings', icon: 'settings', href: href({ site: 'app', page: 'settings' }) },
-        ...(admin ? [{ label: 'Admin', icon: 'users', href: href({ site: 'app', page: 'admin' }) }] : []),
         { label: 'Privacy notice', icon: 'lock', href: href({ site: 'website', page: 'privacy' }) },
+        // The API decides who may see the User records; the admin claim only decides what is shown.
+        ...(admin
+          ? [
+              { divider: true as const },
+              { heading: 'SecMinds admin' },
+              { label: 'Admin overview', icon: 'bar-chart-3', href: href({ site: 'app', page: 'admin' }) },
+              { label: 'User records', icon: 'users', href: href({ site: 'app', page: 'admin-users' }) },
+            ]
+          : []),
         { divider: true as const },
         { label: 'Sign out', danger: true, onSelect: onSignOut },
       ]}

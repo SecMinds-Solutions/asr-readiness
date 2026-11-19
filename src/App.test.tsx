@@ -124,6 +124,12 @@ const sidebar = async () => screen.findByRole('navigation', { name: 'Main' });
 /** Opens a page from the sidebar, as a User clicking its link. */
 const openPage = async (name: string) => fireEvent.click(within(await sidebar()).getByRole('link', { name }));
 
+/** Opens an admin page from the user menu, the only place the admin pages are linked from. */
+const openAdminPage = async (name: 'Admin overview' | 'User records') => {
+  await openUserMenu();
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+};
+
 /** Opens Settings from the user menu, the only place it is linked from. */
 const openSettings = async () => {
   await openUserMenu();
@@ -491,41 +497,33 @@ describe('App: admin page', () => {
     { ...storedRecord, username: 'grace@fabrikam.com', firstName: '<b>Grace</b>', lastName: '', contactConsent: true },
   ];
 
-  it('shows Admin in the user menu only to a User whose ID token has the Admin role', async () => {
+  it('shows the SecMinds admin pages in the user menu only to a User whose ID token has the Admin role, never in the sidebar', async () => {
     const { unmount } = renderApp(<App signIn={setup(fakeClient(async () => ada))} adminConsentResult={null} />);
     await findPageHeading('Overview');
     await openUserMenu();
-    expect(screen.queryByRole('menuitem', { name: 'Admin' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Admin overview' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'User records' })).toBeNull();
     unmount();
 
     renderApp(<App signIn={setup(fakeClient(async () => frans))} adminConsentResult={null} />);
     await findPageHeading('Overview');
+    expect(within(await sidebar()).queryByRole('link', { name: /Admin overview|User records/ })).toBeNull();
     await openUserMenu();
-    expect(screen.getByRole('menuitem', { name: 'Admin' })).toHaveAttribute('href', 'http://localhost:3000/app/admin');
+    expect(screen.getByRole('menuitem', { name: 'Admin overview' })).toHaveAttribute('href', 'http://localhost:3000/app/admin');
+    expect(screen.getByRole('menuitem', { name: 'User records' })).toHaveAttribute('href', 'http://localhost:3000/app/admin/users');
   });
 
-  it('shows the SecMinds admin pages in the sidebar only to a User whose ID token has the Admin role', async () => {
-    const { unmount } = renderApp(<App signIn={setup(fakeClient(async () => ada))} adminConsentResult={null} />);
-    expect(within(await sidebar()).queryByRole('list', { name: 'SecMinds admin' })).toBeNull();
-    unmount();
-
-    renderApp(<App signIn={setup(fakeClient(async () => frans))} adminConsentResult={null} />);
-    const admin = within(await sidebar()).getByRole('list', { name: 'SecMinds admin' });
-    expect(within(admin).getByRole('link', { name: 'Admin overview' })).toHaveAttribute('href', 'http://localhost:3000/app/admin');
-    expect(within(admin).getByRole('link', { name: 'User records' })).toHaveAttribute('href', 'http://localhost:3000/app/admin/users');
-  });
-
-  it('opens User records from the sidebar', async () => {
+  it('opens User records and the Admin overview from the user menu, reading the records once', async () => {
     const userRecord = fakeUserRecord();
     vi.mocked(userRecord.listUserRecords).mockResolvedValue({ status: 'allowed', users });
     goTo('/app/admin');
     renderApp(<App signIn={setup(fakeClient(async () => frans), userRecord)} adminConsentResult={null} />);
-    await openPage('User records');
+    await openAdminPage('User records');
     expect(await findPageHeading('User records')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/app/admin/users');
     expect(await screen.findByText('grace@fabrikam.com')).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Users per Home tenant' })).toBeNull();
-    await openPage('Admin overview');
+    await openAdminPage('Admin overview');
     expect(await screen.findByRole('table', { name: 'Users per Home tenant' })).toBeInTheDocument();
     expect(userRecord.listUserRecords).toHaveBeenCalledOnce();
   });
@@ -535,7 +533,7 @@ describe('App: admin page', () => {
     renderApp(<App signIn={setup(client)} adminConsentResult={null} />);
     await findPageHeading('Overview');
     await openUserMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Admin' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Admin overview' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Admin overview' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/app/admin');
     expect(screen.getByRole('main')).toHaveFocus();
@@ -772,8 +770,7 @@ describe('App: pages of the Analysis', () => {
     expect(within(nav).getByRole('link', { name: 'ASR rules' })).toHaveAttribute('href', 'http://localhost:3000/app/rules');
     expect(within(nav).getByRole('link', { name: 'Audit events' })).toHaveAttribute('href', 'http://localhost:3000/app/events');
     expect(within(nav).queryByRole('link', { name: 'Settings' })).toBeNull();
-    expect(within(nav).getByRole('list', { name: 'Analysis' })).toBeInTheDocument();
-    expect(within(nav).queryByRole('list', { name: 'SecMinds admin' })).toBeNull();
+    expect(within(nav).getAllByRole('link')).toHaveLength(5);
   });
 
   it('moves between pages without reading Graph again, and moves focus to the page', async () => {

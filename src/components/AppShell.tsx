@@ -27,8 +27,11 @@ export const PAGE_HEADINGS: Record<AppPage, { title: string; description: string
   'admin-users': { title: 'User records', description: 'Every User record, to read and export. Only SecMinds admins can see them.' },
 };
 
-/** The sidebar: the Analysis, and the SecMinds admin pages for admins only. Settings is in the user menu. */
-function AppNav({ page, admin }: { page: AppPage; admin: boolean }) {
+/**
+ * The sidebar: the pages of the Analysis. Settings and, for SecMinds admins, the admin pages are in
+ * the user menu.
+ */
+function AppNav({ page }: { page: AppPage }) {
   const { href } = useNavigation();
   const item = (target: AppPage, label: string, icon: string) => ({
     label,
@@ -39,26 +42,12 @@ function AppNav({ page, admin }: { page: AppPage; admin: boolean }) {
   return (
     <SideNav
       label="Main"
-      groups={[
-        {
-          label: 'Analysis',
-          items: [
-            item('home', 'Overview', 'activity'),
-            item('verdicts', 'Verdicts', 'circle-check'),
-            item('policy', 'Suggested policy', 'file-text'),
-            item('rules', 'ASR rules', 'shield-check'),
-            item('events', 'Audit events', 'eye'),
-          ],
-        },
-        // The API decides who may see the User records; the admin claim only decides what is shown.
-        ...(admin
-          ? [
-              {
-                label: 'SecMinds admin',
-                items: [item('admin', 'Admin overview', 'bar-chart-3'), item('admin-users', 'User records', 'users')],
-              },
-            ]
-          : []),
+      items={[
+        item('home', 'Overview', 'activity'),
+        item('verdicts', 'Verdicts', 'circle-check'),
+        item('policy', 'Suggested policy', 'file-text'),
+        item('rules', 'ASR rules', 'shield-check'),
+        item('events', 'Audit events', 'eye'),
       ]}
     />
   );
@@ -92,18 +81,16 @@ export function Page({ account, title, children }: { account?: ReactNode; title:
 export function ShellPage({
   account,
   page,
-  admin,
   children,
 }: {
   account: ReactNode;
   page: AppPage;
-  admin: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="sm-root app">
       <AppHeader account={account} />
-      <AppLayout className="app-layout" sidebar={<AppNav page={page} admin={admin} />}>
+      <AppLayout className="app-layout" sidebar={<AppNav page={page} />}>
         <main className="app-page" id={MAIN_ID} tabIndex={-1}>
           <PageHeading {...PAGE_HEADINGS[page]} />
           {children}
