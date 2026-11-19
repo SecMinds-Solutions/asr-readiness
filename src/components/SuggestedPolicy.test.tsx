@@ -31,7 +31,7 @@ describe('SuggestedPolicyView', () => {
     fireEvent.click(screen.getByRole('button', { name: /Download Suggested policy/ }));
     expect(saveFile).toHaveBeenCalledTimes(1);
     const [fileName, contents] = saveFile.mock.calls[0] as [string, string];
-    expect(fileName).toMatch(/^asr-compas-suggested-policy-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(fileName).toMatch(/^asr-compass-suggested-policy-\d{4}-\d{2}-\d{2}\.json$/);
     const json = JSON.parse(contents) as { platforms: string };
     expect(json.platforms).toBe('windows10');
     expect(contents).toContain(`${wmi.intuneSetting}_block`);

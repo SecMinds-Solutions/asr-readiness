@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in ASR Compas.
+Thanks for your interest in ASR Compass.
 
 This repository is published from SecMinds' development repository, so pull requests
 here cannot be merged and are closed automatically. Contributions are very welcome as

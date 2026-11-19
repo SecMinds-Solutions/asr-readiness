@@ -10,7 +10,7 @@ export const ENTRA_SIGNING_KEYS: JWTVerifyGetKey = createRemoteJWKSet(
   { timeoutDuration: 5000 },
 );
 
-/** The tenant of personal Microsoft accounts; ASR Compas serves work and school accounts only. */
+/** The tenant of personal Microsoft accounts; ASR Compass serves work and school accounts only. */
 const CONSUMER_TENANT = '9188040d-6c67-4c5b-b112-36a304b66dad';
 
 export interface VerifyOptions {

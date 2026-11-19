@@ -46,7 +46,7 @@ export function NotSupportedCard({ details }: { details: string }) {
     <Card title="Your Tenant is not supported">
       <p className="app-text">Advanced hunting has no Defender for Endpoint data in this Tenant.</p>
       <p className="app-text">
-        ASR Compas needs Microsoft Defender for Endpoint Plan 2, also included in Microsoft 365 E5 and the Defender
+        ASR Compass needs Microsoft Defender for Endpoint Plan 2, also included in Microsoft 365 E5 and the Defender
         Suite add-on for Business Premium. An Analysis reads ASR audit events from advanced hunting, which Plan 2 provides.
         Defender for Business is not supported: it has no advanced hunting, and without audit events a Verdict cannot
         say whether blocking a rule is safe.

@@ -44,7 +44,7 @@ export function ContactConsentCard({
       }
     >
       <p className="app-text">
-        ASR Compas stores your Home tenant, username, first and last name, email address and the choice below,
+        ASR Compass stores your Home tenant, username, first and last name, email address and the choice below,
         with its date. Nothing about your Tenant&apos;s security data is stored.
       </p>
       <Checkbox
@@ -53,7 +53,7 @@ export function ContactConsentCard({
         onChange={(event) => setContactConsent(event.target.checked)}
         disabled={saving}
       />
-      <p className="app-text app-hint">Without this, SecMinds only emails you about ASR Compas itself.</p>
+      <p className="app-text app-hint">Without this, SecMinds only emails you about ASR Compass itself.</p>
       {error && (
         <Alert tone="danger" title="Your choice could not be saved">
           {error}

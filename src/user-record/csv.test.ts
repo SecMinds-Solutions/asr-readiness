@@ -54,7 +54,7 @@ describe('userRecordsCsv', () => {
 
 describe('userRecordsCsvFileName', () => {
   it('names the file after the local date', () => {
-    expect(userRecordsCsvFileName(new Date(2026, 10, 18, 23, 30))).toBe('asr-compas-users-2026-11-18.csv');
+    expect(userRecordsCsvFileName(new Date(2026, 10, 18, 23, 30))).toBe('asr-compass-users-2026-11-18.csv');
   });
 });
 

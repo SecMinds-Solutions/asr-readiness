@@ -1,6 +1,6 @@
 # The Suggested policy holds only the rules that are ready
 
-The Suggested policy is an Intune settings catalog policy that the User downloads as JSON, imports in the Intune admin center, and assigns and deploys themselves. ASR Compas never writes to the Tenant (ADR-0002). The policy holds one "Attack Surface Reduction Rules" setting with only the rules whose Verdict is Ready to block or Ready with exclusions, each set to Block, and each Ready with exclusions rule with its Suggested exclusions as that rule's own exclusions (per-rule exclusions). Every other rule is left out of the policy, so the Tenant's own policies keep setting it.
+The Suggested policy is an Intune settings catalog policy that the User downloads as JSON, imports in the Intune admin center, and assigns and deploys themselves. ASR Compass never writes to the Tenant (ADR-0002). The policy holds one "Attack Surface Reduction Rules" setting with only the rules whose Verdict is Ready to block or Ready with exclusions, each set to Block, and each Ready with exclusions rule with its Suggested exclusions as that rule's own exclusions (per-rule exclusions). Every other rule is left out of the policy, so the Tenant's own policies keep setting it.
 
 ## Considered Options
 

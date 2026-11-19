@@ -64,7 +64,7 @@ export function SuggestedPolicyView({
       <p className="app-text">
         The Suggested policy sets the ASR rules below to Block mode, with their Suggested exclusions. Rules that are not ready
         are not in it, so it leaves them as your own policies set them. Each Verdict speaks only for the devices in its
-        Coverage, so check devices outside it in the pilot. ASR Compas never changes anything in your Tenant:
+        Coverage, so check devices outside it in the pilot. ASR Compass never changes anything in your Tenant:
         you import, assign and deploy the policy yourself.
       </p>
       <Table

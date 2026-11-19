@@ -81,7 +81,7 @@ describe('createThemeController', () => {
     expect(root.dataset.theme).toBe('light');
   });
 
-  it('keeps the storage key asr-readiness-theme, so a choice from before the rename to ASR Compas still applies', () => {
+  it('keeps the storage key asr-readiness-theme, so a choice from before the rename to ASR Compass still applies', () => {
     const root = document.createElement('html');
     createThemeController(root, fakeQuery(true), () => memoryStorage({ 'asr-readiness-theme': 'light' }));
     expect(root.dataset.theme).toBe('light');

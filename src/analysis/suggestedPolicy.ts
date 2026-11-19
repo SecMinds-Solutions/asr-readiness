@@ -93,10 +93,10 @@ export function suggestedPolicy(assessments: readonly RuleAssessment[], created:
   const date = localDate(created);
   return {
     rules,
-    fileName: `asr-compas-suggested-policy-${date}.json`,
+    fileName: `asr-compass-suggested-policy-${date}.json`,
     policy: {
-      name: `ASR Compas suggested policy ${date}`,
-      description: `Suggested by ASR Compas on ${date}. Sets the ASR rules that were Ready to block or Ready with exclusions to Block, with their Suggested exclusions. Rules that were not ready are not in this policy.`,
+      name: `ASR Compass suggested policy ${date}`,
+      description: `Suggested by ASR Compass on ${date}. Sets the ASR rules that were Ready to block or Ready with exclusions to Block, with their Suggested exclusions. Rules that were not ready are not in this policy.`,
       platforms: 'windows10',
       technologies: 'mdm',
       roleScopeTagIds: ['0'],

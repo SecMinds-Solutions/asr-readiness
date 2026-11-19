@@ -1,9 +1,9 @@
-# ASR Compas
+# ASR Compass
 
 A free, open-source community tool that helps organisations move Microsoft Defender
 Attack Surface Reduction (ASR) rules from audit mode to block mode safely.
 
-Sign in with your Entra account, and ASR Compas reads your tenant's ASR audit events
+Sign in with your Entra account, and ASR Compass reads your tenant's ASR audit events
 and Intune ASR policies, gives every rule a verdict, and suggests exclusions and a
 ready-made Intune policy that you review and deploy yourself.
 
@@ -52,7 +52,7 @@ ready-made Intune policy that you review and deploy yourself.
   or the Microsoft Entra role Security Reader, for advanced hunting; and an Intune role with
   Device configurations: Read, such as Read Only Operator.
 
-After you sign in, ASR Compas checks these with one small advanced hunting query and one
+After you sign in, ASR Compass checks these with one small advanced hunting query and one
 Intune read, and tells you what is missing.
 
 MSPs can analyse customer tenants through GDAP.

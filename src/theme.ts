@@ -2,7 +2,7 @@ export type Theme = 'light' | 'dark';
 
 /**
  * Where the User's theme choice is kept in their browser: a preference, never security data. The key
- * keeps the app's former name, so a choice made before the rename to ASR Compas still applies.
+ * keeps the app's former name, so a choice made before the rename to ASR Compass still applies.
  */
 export const THEME_STORAGE_KEY = 'asr-readiness-theme';
 

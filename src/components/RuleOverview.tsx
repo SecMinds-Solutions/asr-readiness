@@ -88,7 +88,7 @@ export function RuleOverviewView({
         </Alert>
       )}
       <Alert tone="info" title="Devices without Intune management">
-        Coverage counts every device that reports its Rule modes, whatever manages it. ASR Compas cannot tell which of
+        Coverage counts every device that reports its Rule modes, whatever manages it. ASR Compass cannot tell which of
         them Intune manages, so it cannot show the devices without Intune management separately: its read permissions do
         not show that. On such devices an Intune policy has no effect, and their Rule modes come from elsewhere, such as
         Group Policy or Configuration Manager.
