@@ -31,8 +31,8 @@ describe('UserMenu', () => {
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(button).toHaveAttribute('aria-controls', menu().id);
-    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-    expect(screen.getByText('ada@contoso.com')).toBeInTheDocument();
+    expect(menu()).toHaveAccessibleDescription(/Ada Lovelace/);
+    expect(menu()).toHaveAccessibleDescription(/ada@contoso\.com/);
     expect(items().map((item) => item.textContent)).toEqual(['Settings', 'Privacy notice', 'Sign out']);
     expect(within(menu()).getByRole('menuitem', { name: 'Settings' })).toHaveAttribute('href', 'https://app.asrcompass.cloud/settings');
     expect(within(menu()).getByRole('menuitem', { name: 'Privacy notice' })).toHaveAttribute('href', 'https://asrcompass.cloud/privacy');
@@ -105,6 +105,14 @@ describe('UserMenu', () => {
     fireEvent.click(button);
     fireEvent.mouseDown(screen.getByText('ada@contoso.com'));
     expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('lists the links, then a divider, then Sign out', () => {
+    const { button } = renderMenu();
+    fireEvent.click(button);
+    const children = [...menu().children];
+    expect(children.map((child) => child.getAttribute('role'))).toEqual(['menuitem', 'menuitem', 'separator', 'menuitem']);
+    expect(children[3]).toHaveTextContent('Sign out');
   });
 
   it('signs out from the menu, also with Space or Enter on the item', () => {

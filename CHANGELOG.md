@@ -44,6 +44,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- The header of the website and the app stays at the top of the window while the page scrolls, so the user menu and the other header actions are always within reach. Links to a section of a page leave room for it.
 - The app's header shows the logo, ASR Compass and a Preview badge, a sun or moon icon to switch the theme and the user menu, instead of text links and a "Dark mode" button. Signed out, it shows a compact sign-in card with a link to "What is ASR Compass?" on the website.
 - The User record moved from the privacy notice to Settings; the privacy notice is a page of the website and shows only the notice.
 
@@ -63,6 +64,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- The user menu listed Settings, Admin, Privacy notice and Sign out next to each other instead of below each other, because the navigation bar's link styles also applied to it. The user menu is now the design system's menu: its items sit below each other, with a divider before Sign out.
 - The onboarding check said "Your Tenant could not be checked" when Intune refused to read its policies, because Intune does not always answer a refusal with HTTP 403. It now says access is needed, names the Intune role to assign and shows Intune's own message instead of its raw error.
 - "Check again" and "Try again" in the onboarding check first get a new Microsoft Graph token, so a Microsoft Entra role (such as Security Reader) assigned after sign-in counts without signing out and in again. Roles assigned in Intune or the Microsoft Defender portal do not depend on the token; Microsoft can take a while to apply them.
 - When only the Coverage query fails (for example because the User may read Intune but not the Rule modes devices report, or the advanced hunting quota is used up), the ASR rules overview still shows the Rule modes from Intune, with the reason Coverage is missing and a Try again, instead of failing as a whole.

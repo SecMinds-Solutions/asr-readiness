@@ -360,7 +360,7 @@ describe('App: Settings and the User record', () => {
     await openUserMenu();
     expect(screen.getByRole('menuitem', { name: 'Privacy notice' })).toHaveAttribute('href', 'http://localhost:3000/privacy');
     expect(screen.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute('href', 'http://localhost:3000/app/settings');
-    expect(screen.getByText('ada@contoso.com', { selector: '.app-menu-email' })).toBeInTheDocument();
+    expect(screen.getByRole('menu')).toHaveAccessibleDescription(/ada@contoso\.com/);
   });
 
   it('asks a signed-out User to sign in on Settings, without reading anything', async () => {

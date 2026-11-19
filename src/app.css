@@ -106,31 +106,35 @@ body,
 }
 
 /* Header: brand on the left, actions on the right. */
+/* The header stays at the top while the page scrolls; links to a section of a page leave room for it. */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+html {
+  scroll-padding-top: calc(var(--space-16) + var(--space-4));
+}
+
+/* At phone width the header's actions wrap onto a second row. */
+@media (max-width: 560px) {
+  html {
+    scroll-padding-top: calc(var(--space-16) + var(--space-12));
+  }
+}
+
 .app-header .sm-navbar {
   row-gap: var(--space-2);
 }
 
-/* The design system styles every link in the navbar as a text link; the brand and buttons are not. */
-.app-header .sm-navbar a.app-brand {
+.app-brand {
   display: inline-flex;
   flex: none;
   align-items: center;
   gap: var(--space-2);
-  padding: 0;
-  border: 0;
   color: var(--ink);
-  font-weight: 400;
-}
-
-.app-header .sm-navbar a.sm-btn {
-  display: inline-flex;
-  padding: var(--space-1) var(--space-3);
-  border: 2px solid transparent;
-  color: var(--on-accent);
-}
-
-.app-header .sm-navbar a.sm-btn:hover {
-  color: var(--on-accent);
+  text-decoration: none;
 }
 
 .app-brand:focus-visible {
@@ -142,7 +146,7 @@ body,
   white-space: nowrap;
 }
 
-.app-header .sm-navbar ul:empty {
+.app-header .sm-navbar-links:empty {
   display: none;
 }
 
@@ -152,77 +156,18 @@ body,
 
 /* The website's section links give way to the brand and the actions at phone width. */
 @media (max-width: 640px) {
-  .website-header .sm-navbar li:nth-child(-n + 2) {
+  .website-header .sm-navbar-links li:nth-child(-n + 2) {
     display: none;
   }
 }
 
-/* User menu: a menu button on the design system's IconButton. */
-.app-menu {
-  position: relative;
-}
-
-.app-menu-popup {
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--space-1));
-  z-index: 50;
-  min-width: 240px;
+/* User menu: the name and email address can be long; the menu stays inside a phone screen. */
+.app-header .sm-menu-list {
   max-width: calc(100vw - 2 * var(--space-4));
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
 }
 
-.app-menu-head {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--line);
+.app-header .sm-menu-header {
   overflow-wrap: anywhere;
-}
-
-.app-menu-name {
-  font-weight: 700;
-}
-
-.app-menu-email {
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--ink-muted);
-}
-
-.app-menu-popup ul {
-  list-style: none;
-  margin: 0;
-  padding: var(--space-1) 0;
-}
-
-.app-menu-item {
-  display: block;
-  width: 100%;
-  padding: var(--space-2) var(--space-4);
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 14px;
-  line-height: 20px;
-  text-align: left;
-  color: var(--ink);
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.app-menu-item:hover,
-.app-menu-item:focus {
-  background: var(--accent-soft);
-  outline: none;
-}
-
-.app-menu-item:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
 }
 
 /* Footer of the website and the app. */
