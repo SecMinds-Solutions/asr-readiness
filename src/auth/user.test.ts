@@ -12,7 +12,7 @@ describe('signedInUserFrom', () => {
         homeAccountId: `aaaa.${homeTenantId}`,
         tenantId: homeTenantId,
       }),
-    ).toEqual({ name: 'Ada Lovelace', username: 'ada@contoso.com', homeTenantId, admin: false });
+    ).toEqual({ name: 'Ada Lovelace', username: 'ada@contoso.com', homeTenantId, email: 'ada@contoso.com', admin: false });
   });
 
   it('takes the Home tenant from the home account, not the tenant signed in to', () => {
@@ -36,6 +36,12 @@ describe('signedInUserFrom', () => {
         idTokenClaims: roles === undefined ? {} : { roles: roles as string[] },
       }).admin,
     ).toBe(admin);
+  });
+
+  it('takes the email address from the ID token, or else the username', () => {
+    const account = { username: 'ada@contoso.com', homeAccountId: `aaaa.${homeTenantId}`, tenantId: homeTenantId };
+    expect(signedInUserFrom({ ...account, idTokenClaims: { email: 'ada.lovelace@contoso.com' } }).email).toBe('ada.lovelace@contoso.com');
+    expect(signedInUserFrom({ ...account, idTokenClaims: {} }).email).toBe('ada@contoso.com');
   });
 
   it('falls back to the username when the account has no name', () => {

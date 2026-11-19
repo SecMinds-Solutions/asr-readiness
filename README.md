@@ -7,7 +7,8 @@ Sign in with your Entra account, and ASR Compass reads your tenant's ASR audit e
 and Intune ASR policies, gives every rule a verdict, and suggests exclusions and a
 ready-made Intune policy that you review and deploy yourself.
 
-> **Status:** in development. Sign-in works; the analysis follows.
+> **Status:** preview. The website is at [asrcompass.cloud](https://asrcompass.cloud), the app at
+> [app.asrcompass.cloud](https://app.asrcompass.cloud).
 
 ## How it works
 
@@ -19,6 +20,10 @@ ready-made Intune policy that you review and deploy yourself.
 
 ## Trust
 
+- **The website does not sign you in or track you.** The website at `asrcompass.cloud` loads no
+  sign-in code, sets no cookies and uses no analytics, trackers or third-party scripts. Only the
+  app, at `app.asrcompass.cloud`, signs you in
+  ([ADR-0010](docs/adr/0010-website-without-sign-in-or-tracking.md)).
 - **Your security data never leaves your browser.** The analysis runs in the browser with
   your own delegated token; nothing about it is sent to or stored by SecMinds.
 - **Read-only, delegated permissions only:** `ThreatHunting.Read.All` and
@@ -29,14 +34,14 @@ ready-made Intune policy that you review and deploy yourself.
   are kept in the browser tab's session storage and are gone when you close the tab. This
   includes a refresh token (`offline_access`) that renews them while the tab is open. The app
   has no client secret or certificate. Your light or dark mode choice is the only thing the
-  app keeps in your browser's local storage.
+  website and the app keep in your browser's local storage.
 - **Stored about you, and nothing else:** your Home tenant ID, username, first name, last
   name, email address, and whether you agreed to hear from SecMinds about other products,
   with the date of that choice. All of it except the choice comes from your Microsoft
   sign-in. You make the choice after your first sign-in, and the box is unticked by default.
   The record is kept in Azure Table Storage in West Europe until you delete it. Signed in,
-  you can see your record, withdraw your Contact consent and delete the record yourself, from
-  the app's privacy notice; see [`PRIVACY.md`](PRIVACY.md). A small number of SecMinds
+  you can see your record, withdraw your Contact consent and delete the record yourself, under
+  **Settings** in the app's user menu; see [`PRIVACY.md`](PRIVACY.md). A small number of SecMinds
   admins can see and export the User records, but not change or delete them
   ([ADR-0009](docs/adr/0009-secminds-admins-can-read-user-records.md)).
 - **Hosted on Azure.** The web page is served from Azure's global network; the backend that
@@ -70,6 +75,7 @@ npm ci
 npm run dev
 ```
 
+Locally the website is at `http://localhost:5173/` and the app at `http://localhost:5173/app`.
 To sign in locally, copy `.env.example` to `.env.local` and set `VITE_ENTRA_CLIENT_ID` to the
 client ID of an app registration of your own, as described in `.env.example`.
 

@@ -1,16 +1,29 @@
-import { useRef, useState, type KeyboardEvent } from 'react';
 import { SecMinds } from '../design-system';
-import type { UserRecord } from '../user-record/client';
-import type { UserRecordChange } from '../user-record/useUserRecord';
-import { HOME_HREF } from '../route';
+import { useNavigation } from '../navigation';
 
-const { Alert, Badge, Button, Card, Dialog, TextLink } = SecMinds;
+const { TextLink } = SecMinds;
 
-/** What ASR Compass stores about a User, why, where, and how they see, change or delete it. */
+/**
+ * The privacy notice page on the website: what ASR Compass stores about a User, why, where, and how
+ * they see, change or delete it. `PRIVACY.md` holds the same text.
+ */
 export function PrivacyNotice() {
+  const { href } = useNavigation();
   return (
-    <Card title="Privacy notice">
-      <h4 className="h4">What is stored about you</h4>
+    <article className="app-prose">
+      <h1 className="h1 app-title">Privacy notice</h1>
+      <p className="body-lg app-lead">
+        This is the privacy notice of ASR Compass, a free community tool by SecMinds Solutions.
+      </p>
+
+      <h2 className="h3">This website</h2>
+      <p className="app-text">
+        This website does not sign you in and sets no cookies. It uses no analytics, trackers or third-party scripts, and loads
+        nothing from Microsoft&apos;s sign-in service. Only the app, at its own address, signs you in. Your light or dark mode
+        choice is kept in your browser&apos;s local storage, on this website and in the app.
+      </p>
+
+      <h2 className="h3">What is stored about you</h2>
       <p className="app-text">
         When you sign in for the first time, ASR Compass stores a User record with exactly these fields, and nothing else:
       </p>
@@ -24,192 +37,41 @@ export function PrivacyNotice() {
         Contact consent choice after your first sign-in, with the box unticked.
       </p>
 
-      <h4 className="h4">What is never stored</h4>
+      <h2 className="h3">What is never stored</h2>
       <p className="app-text">
         An Analysis runs in your browser. Your Tenant&apos;s security data, such as Audit events, paths, device names, policies
         and Verdicts, is never sent to SecMinds and never stored, and neither is which Tenants you analyse. Your sign-in tokens
         stay in your browser tab and are gone when you close it. ASR Compass uses no analytics or trackers.
       </p>
 
-      <h4 className="h4">Why</h4>
+      <h2 className="h3">Why</h2>
       <ul className="app-list">
         <li>To know who uses ASR Compass, and to email you about ASR Compass itself.</li>
         <li>Only with your Contact consent: to email you about SecMinds&apos; other products.</li>
       </ul>
 
-      <h4 className="h4">Who can see it</h4>
+      <h2 className="h3">Who can see it</h2>
       <p className="app-text">
         A small number of SecMinds admins can see every User record, list only the Users who gave Contact consent, and export the records as a file, for example to email Users who gave Contact consent. They cannot change or delete your record. Nobody else at SecMinds has access through
         the app.
       </p>
 
-      <h4 className="h4">Where and for how long</h4>
+      <h2 className="h3">Where and for how long</h2>
       <p className="app-text">
         The User record is stored in Azure Table Storage in Microsoft&apos;s West Europe region, in the European Union. It is kept
         until you delete it.
       </p>
 
-      <h4 className="h4">Your rights</h4>
-      <p className="app-text">Sign in and open this page to:</p>
+      <h2 className="h3">Your rights</h2>
+      <p className="app-text">
+        Sign in to the app and open <strong>Settings</strong> in the user menu to:
+      </p>
       <ul className="app-list">
         <li>see your stored User record;</li>
         <li>withdraw your Contact consent, or give it later; your new choice is stored with its date;</li>
         <li>delete your User record; it is removed from storage at once, and nothing about you remains.</li>
       </ul>
-      <TextLink href={HOME_HREF}>Back to ASR Compass</TextLink>
-    </Card>
-  );
-}
-
-/** The date of a Contact consent choice in words, as the User's browser shows dates. */
-const dateText = (iso: string) => {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-};
-
-const orNotGiven = (value: string) => value || 'Not in your sign-in';
-
-const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
-
-/**
- * Keeps Tab and Shift+Tab inside an open dialog: the design system's Dialog focuses itself and
- * closes on Escape, but does not contain focus.
- */
-function containFocus(event: KeyboardEvent<HTMLElement>) {
-  if (event.key !== 'Tab') return;
-  const dialog = event.currentTarget.querySelector<HTMLElement>('[role="dialog"]');
-  const focusable = dialog ? [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)] : [];
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  if (!dialog || !first || !last) return;
-  const active = document.activeElement;
-  if (event.shiftKey && (active === first || active === dialog)) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && active === last) {
-    event.preventDefault();
-    first.focus();
-  }
-}
-
-/** The signed-in User's stored User record, with the actions to change their Contact consent or delete it. */
-export function UserRecordCard({
-  record,
-  changing,
-  error,
-  onChangeContactConsent,
-  onDelete,
-}: {
-  record: UserRecord;
-  changing?: UserRecordChange;
-  error?: string;
-  onChangeContactConsent: (contactConsent: boolean) => void;
-  onDelete: () => void;
-}) {
-  const [confirming, setConfirming] = useState(false);
-  const opener = useRef<HTMLElement | null>(null);
-  const busy = changing !== undefined;
-  const openConfirmation = () => {
-    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setConfirming(true);
-  };
-  /** Closing without deleting returns focus to the button that opened the dialog. */
-  const cancel = () => {
-    setConfirming(false);
-    // After React removes the dialog, so focus does not land on an element that is going away.
-    setTimeout(() => opener.current?.focus(), 0);
-  };
-  return (
-    <Card title="Your User record">
-      <p className="app-text">This is everything ASR Compass stores about you.</p>
-      <dl className="app-details">
-        <dt>Home tenant ID</dt>
-        <dd>{record.homeTenantId}</dd>
-        <dt>Username</dt>
-        <dd>{record.username}</dd>
-        <dt>First name</dt>
-        <dd>{orNotGiven(record.firstName)}</dd>
-        <dt>Last name</dt>
-        <dd>{orNotGiven(record.lastName)}</dd>
-        <dt>Email address</dt>
-        <dd>{orNotGiven(record.email)}</dd>
-        <dt>Contact consent</dt>
-        <dd>
-          <Badge tone={record.contactConsent ? 'success' : 'neutral'}>{record.contactConsent ? 'Given' : 'Not given'}</Badge>{' '}
-          {record.contactConsent ? 'since' : 'as of'} {dateText(record.contactConsentDate)}
-        </dd>
-      </dl>
-      {error && (
-        <Alert tone="danger" title="Not changed">
-          {error}
-        </Alert>
-      )}
-      <div className="app-row">
-        {record.contactConsent ? (
-          <Button variant="secondary" loading={changing === 'contact-consent'} disabled={busy} onClick={() => onChangeContactConsent(false)}>
-            Withdraw Contact consent
-          </Button>
-        ) : (
-          <Button variant="secondary" loading={changing === 'contact-consent'} disabled={busy} onClick={() => onChangeContactConsent(true)}>
-            Give Contact consent
-          </Button>
-        )}
-        <Button variant="danger" loading={changing === 'delete'} disabled={busy} onClick={openConfirmation}>
-          Delete my User record
-        </Button>
-      </div>
-      <div onKeyDown={containFocus}>
-        <Dialog
-          open={confirming}
-          title="Delete your User record?"
-          onClose={cancel}
-          footer={
-            <>
-              <Button variant="secondary" onClick={cancel}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  setConfirming(false);
-                  onDelete();
-                }}
-              >
-                Delete
-              </Button>
-            </>
-          }
-        >
-          <p className="app-text">
-            Your User record is removed from storage at once, and nothing about you remains. If you sign in again later, you
-            make the Contact consent choice again and a new User record is stored.
-          </p>
-        </Dialog>
-      </div>
-    </Card>
-  );
-}
-
-/** After deleting: nothing is stored, and the User is not taken back into the app until they sign in again. */
-export function UserRecordDeletedCard({ onSignOut }: { onSignOut: () => void }) {
-  return (
-    <Alert tone="success" title="Your User record is deleted">
-      Nothing about you remains in storage. Sign out to finish; if you sign in again, a new User record is stored after your
-      Contact consent choice.{' '}
-      <Button variant="secondary" size="sm" onClick={onSignOut}>
-        Sign out
-      </Button>
-    </Alert>
-  );
-}
-
-/** For a User who is not signed in, or has no record yet, on the privacy notice page. */
-export function NoUserRecordNotice({ signedIn }: { signedIn: boolean }) {
-  return (
-    <Alert tone="info" title="Your User record">
-      {signedIn
-        ? 'Nothing is stored about you yet: your User record is stored once you make the Contact consent choice.'
-        : 'Sign in to see, change or delete your User record.'}
-    </Alert>
+      <TextLink href={href({ site: 'app', page: 'settings' })}>Open Settings in the app</TextLink>
+    </article>
   );
 }

@@ -1,49 +1,29 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { App, type SignInSetup } from './App';
-import { readAuthConfig, type AuthConfig } from './auth/config';
-import { adminConsentUrl, readAdminConsentResult } from './auth/consent';
-import { createAuthClient } from './auth/msalAuthClient';
-import { ThemeContext } from './components/ThemeToggle';
-import { createThemeController } from './theme';
-import { fetchAuditEvents } from './graph/auditEvents';
-import { fetchAuditPeriods } from './graph/auditPeriods';
-import { createGraphClient } from './graph/client';
-import { fetchRuleOverview } from './graph/ruleOverview';
-import { createReadinessCheck } from './onboarding/readiness';
-import { createUserRecordClient } from './user-record/client';
+import { readOrigins, resolve, type Origins, type Place } from './places';
+import { createThemeController, type ThemeController } from './theme';
 
-const theme = createThemeController(document.documentElement, window.matchMedia('(prefers-color-scheme: dark)'), () => window.localStorage);
-
-// The admin consent page returns here with its outcome in the query string. Read it, then
-// remove it from the address bar so a reload does not show it again.
-const adminConsentResult = readAdminConsentResult(window.location.search);
-if (adminConsentResult) window.history.replaceState(null, '', window.location.pathname);
-
-const authConfig = readAuthConfig(import.meta.env, window.location.origin);
-const signIn = authConfig ? signInSetup(authConfig) : null;
-
-function signInSetup(config: AuthConfig): SignInSetup {
-  const client = createAuthClient(config);
-  const graph = createGraphClient(() => client.graphToken());
-  return {
-    client,
-    adminConsentUrl: adminConsentUrl(config),
-    userRecord: createUserRecordClient(() => client.userRecordToken()),
-    checkReadiness: createReadinessCheck(graph, () => client.refreshGraphToken()),
-    loadRuleOverview: () => fetchRuleOverview(graph),
-    loadAuditEvents: () => fetchAuditEvents(graph),
-    loadAuditPeriods: () => fetchAuditPeriods(graph),
-  };
+/** What both halves need to render: the root element, the theme and where they are. */
+export interface MountOptions {
+  container: HTMLElement;
+  theme: ThemeController;
+  origins: Origins;
+  place: Place;
 }
 
-const container = document.getElementById('root');
-if (!container) throw new Error('Missing #root element');
+const origins = readOrigins(import.meta.env);
+const resolution = resolve(new URL(window.location.href), origins);
 
-createRoot(container).render(
-  <StrictMode>
-    <ThemeContext.Provider value={theme}>
-      <App signIn={signIn} adminConsentResult={adminConsentResult} />
-    </ThemeContext.Provider>
-  </StrictMode>,
-);
+if (resolution.kind === 'redirect') {
+  window.location.replace(resolution.url);
+} else {
+  const container = document.getElementById('root');
+  if (!container) throw new Error('Missing #root element');
+  const theme = createThemeController(document.documentElement, window.matchMedia('(prefers-color-scheme: dark)'), () => window.localStorage);
+  const options: MountOptions = { container, theme, origins, place: resolution.place };
+  // Each half is its own chunk: the website never loads the sign-in library, the Graph client or the
+  // User record client, which only the app imports.
+  const half = resolution.place.site === 'website' ? import('./website/mount') : import('./appMount');
+  half.then(({ mount }) => mount(options)).catch((error: unknown) => {
+    container.textContent = 'ASR Compass could not be loaded. Reload the page to try again.';
+    throw error;
+  });
+}

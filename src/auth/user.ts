@@ -8,6 +8,8 @@ export interface SignedInUser {
   name: string;
   username: string;
   homeTenantId: string;
+  /** The email address from the ID token, or the username when it has none; shown in the user menu only. */
+  email: string;
   /**
    * Whether the ID token carries the app role Admin. It only decides whether the app shows the
    * admin page link; the API checks the role and the admin tenant itself.
@@ -26,5 +28,7 @@ export function signedInUserFrom(
   const homeTenantId = account.homeAccountId.split('.')[1] || account.tenantId;
   const roles = account.idTokenClaims?.roles;
   const admin = Array.isArray(roles) && roles.includes(ADMIN_ROLE);
-  return { name: account.name || account.username, username: account.username, homeTenantId, admin };
+  const emailClaim = account.idTokenClaims?.email;
+  const email = typeof emailClaim === 'string' && emailClaim ? emailClaim : account.username;
+  return { name: account.name || account.username, username: account.username, homeTenantId, email, admin };
 }

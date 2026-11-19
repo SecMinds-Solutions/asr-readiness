@@ -104,3 +104,320 @@ body,
 .app-block {
   display: block;
 }
+
+/* Header: brand on the left, actions on the right. */
+.app-header .sm-navbar {
+  row-gap: var(--space-2);
+}
+
+/* The design system styles every link in the navbar as a text link; the brand and buttons are not. */
+.app-header .sm-navbar a.app-brand {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.app-header .sm-navbar a.sm-btn {
+  display: inline-flex;
+  padding: var(--space-1) var(--space-3);
+  border: 2px solid transparent;
+  color: var(--on-accent);
+}
+
+.app-header .sm-navbar a.sm-btn:hover {
+  color: var(--on-accent);
+}
+
+.app-brand:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.app-brand-name {
+  white-space: nowrap;
+}
+
+.app-header .sm-navbar ul:empty {
+  display: none;
+}
+
+.app-header .sm-navbar-actions {
+  margin-left: auto;
+}
+
+/* The website's section links give way to the brand and the actions at phone width. */
+@media (max-width: 640px) {
+  .website-header .sm-navbar li:nth-child(-n + 2) {
+    display: none;
+  }
+}
+
+/* User menu: a menu button on the design system's IconButton. */
+.app-menu {
+  position: relative;
+}
+
+.app-menu-popup {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 50;
+  min-width: 240px;
+  max-width: calc(100vw - 2 * var(--space-4));
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-menu-head {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.app-menu-name {
+  font-weight: 700;
+}
+
+.app-menu-email {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink-muted);
+}
+
+.app-menu-popup ul {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) 0;
+}
+
+.app-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.app-menu-item:hover,
+.app-menu-item:focus {
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.app-menu-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* Footer of the website and the app. */
+.app-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+}
+
+.app-footer-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.app-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.app-footer-text {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+/* A page of running text, such as the privacy notice. */
+.app-prose {
+  max-width: 70ch;
+}
+
+.app-prose h2 {
+  margin: var(--space-6) 0 var(--space-2);
+  color: var(--ink);
+}
+
+.website-main:focus {
+  outline: none;
+}
+
+/* Website: full-width sections with a centred column. */
+.site-section {
+  padding: var(--space-12) var(--space-4);
+  scroll-margin-top: var(--space-4);
+}
+
+.site-section-sunken {
+  background: var(--surface-sunken);
+}
+
+.site-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.site-heading {
+  margin: 0;
+  color: var(--ink);
+}
+
+.site-title {
+  margin: 0;
+  color: var(--accent);
+}
+
+.site-lead,
+.site-text {
+  margin: 0;
+  max-width: 65ch;
+  color: var(--ink);
+}
+
+.site-note {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.site-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.site-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.site-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.site-actions .sm-btn {
+  white-space: normal;
+  text-align: center;
+}
+
+.site-example {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.site-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+.site-feature-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.site-feature-title .sm-icon {
+  color: var(--accent);
+}
+
+.site-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.site-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.site-step-title {
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.site-step-body {
+  max-width: 65ch;
+}
+
+.site-trust {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-6);
+}
+
+.site-trust li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.site-trust .sm-icon {
+  color: var(--accent);
+}
+
+.site-closing-inner {
+  align-items: center;
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .site-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .site-example th:nth-child(4),
+  .site-example td:nth-child(4) {
+    display: none;
+  }
+
+  .site-section {
+    padding: var(--space-8) var(--space-4);
+  }
+}

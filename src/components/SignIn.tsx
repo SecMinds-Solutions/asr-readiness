@@ -1,7 +1,7 @@
 import { SecMinds } from '../design-system';
 import type { AdminConsentResult } from '../auth/consent';
 import type { SignedInUser } from '../auth/user';
-import { PRIVACY_HREF } from '../route';
+import { useNavigation } from '../navigation';
 
 const { Alert, Button, Card, Spinner, TextLink } = SecMinds;
 
@@ -23,28 +23,34 @@ export function SignInCard({
   redirecting: boolean;
   adminConsentUrl: string;
 }) {
+  const { href } = useNavigation();
   return (
     <Card
       title="Sign in"
       footer={
         <Button onClick={onSignIn} loading={redirecting}>
-          Sign in
+          Sign in with Microsoft
         </Button>
       }
     >
       <p className="app-text">
         Sign in with the work or school account you use for Microsoft Defender and Intune. ASR Compass
-        reads with your own permissions and changes nothing in your tenant.
+        reads with your own permissions and changes nothing in your tenant. Your security data never leaves
+        your browser.
       </p>
       <p className="app-text">
         Before the first sign-in, an admin of your tenant grants consent once for the whole tenant.
         Admins can <TextLink href={adminConsentUrl}>grant admin consent</TextLink> now.
+      </p>
+      <p className="app-text app-hint">
+        <TextLink href={href({ site: 'website', page: 'home' })}>What is ASR Compass?</TextLink>
       </p>
     </Card>
   );
 }
 
 export function SignedInCard({ user }: { user: SignedInUser }) {
+  const { href } = useNavigation();
   return (
     <Card title="Signed in">
       <dl className="app-details">
@@ -56,7 +62,8 @@ export function SignedInCard({ user }: { user: SignedInUser }) {
         <dd className="code">{user.homeTenantId}</dd>
       </dl>
       <p className="app-text app-hint">
-        See, change or delete what is stored about you in the <TextLink href={PRIVACY_HREF}>privacy notice</TextLink>.
+        See, change or delete what is stored about you under{' '}
+        <TextLink href={href({ site: 'app', page: 'settings' })}>Settings</TextLink> in the user menu.
       </p>
     </Card>
   );

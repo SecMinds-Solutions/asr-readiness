@@ -34,8 +34,17 @@ All notable changes to this project are documented in this file.
 - Admin page: counts of all Users, Users with Contact consent and Users per Home tenant, and a filter that shows only Users with Contact consent. Filtering and counting happen in the browser on the records already read.
 - Admin page: a CSV download of the User records shown (all, or only those with Contact consent), UTF-8 with a BOM and the date in the file name. Values that start like a spreadsheet formula are exported as text. The privacy notice says admins can export the records.
 - `.env.example` with `VITE_ENTRA_CLIENT_ID`, the client ID of the app registration to sign in with.
+- A website at `asrcompass.cloud` and the app at `app.asrcompass.cloud`, from one build: the page picks the website or the app by its hostname, and any other hostname shows the app. The website has a home page and the privacy notice at `/privacy`; the app has `/`, `/settings` and `/admin`. A page of the other half redirects there, unknown paths go to the home page, and the old `#privacy` and `#admin` links still work. Locally the website is at `/` and the app under `/app`. `VITE_SITE_ORIGIN` and `VITE_APP_ORIGIN` set the two origins; see `.env.example`.
+- The website loads no sign-in code and sets no cookies, analytics or third-party scripts; only the app signs you in. ADR-0010 records the decision, and the README's Trust section and the privacy notice say so.
+- A landing page on the website: what ASR Compass does, why ASR rules stay in Audit mode, who it is for, five steps to get started with the admin consent link, the trust promises and an FAQ, with an example Verdict table of fictitious data.
+- A footer on the website and the app with the privacy notice, the source code on GitHub, the copyright and the licence.
+- A user menu in the app's header, with the signed-in User's name and email address, Settings, Admin (for admins only), the privacy notice and Sign out. It works with the keyboard and screen readers.
+- Settings in the app: see your User record, withdraw or give your Contact consent, and delete your User record.
 
 ### Changed
+
+- The app's header shows the logo, ASR Compass and a Preview badge, a sun or moon icon to switch the theme and the user menu, instead of text links and a "Dark mode" button. Signed out, it shows a compact sign-in card with a link to "What is ASR Compass?" on the website.
+- The User record moved from the privacy notice to Settings; the privacy notice is a page of the website and shows only the notice.
 
 - The app is renamed to **ASR Compass**: its pages, documentation, privacy notice, the name shown on Microsoft's consent screen, and the downloaded files (`asr-compass-suggested-policy-<date>.json`, whose policy is named "ASR Compass suggested policy <date>", and `asr-compass-users-<date>.csv`). A light or dark choice made before the rename still applies.
 - Verdicts: a rule is Not ready when the application that triggered an Audit event runs from a User-writable location, or from a folder advanced hunting does not record, also for rules whose exclusion would name the file the rule acts on. A Not ready reason names the kind of User-writable location, such as the Downloads folder or ProgramData.

@@ -23,10 +23,18 @@ import { LoadingRuleOverview, RuleOverviewFailedAlert, RuleOverviewView } from '
 import { SuggestedPolicyView } from './components/SuggestedPolicy';
 import { LoadingVerdicts, VerdictsFailedAlert, VerdictsView } from './components/Verdicts';
 import { AdminPage, AdminSignInNotice } from './components/Admin';
-import { ThemeToggle } from './components/ThemeToggle';
-import { NoUserRecordNotice, PrivacyNotice, UserRecordCard, UserRecordDeletedCard } from './components/Privacy';
+import { AppHeader } from './components/AppHeader';
+import { Footer } from './components/Footer';
+import {
+  NoUserRecordYet,
+  SettingsSignInNotice,
+  UserRecordCard,
+  UserRecordDeletedCard,
+} from './components/Settings';
+import { UserMenu } from './components/UserMenu';
 import type { ReadinessCheck } from './onboarding/readiness';
-import { ADMIN_HREF, HOME_HREF, MAIN_ID, PRIVACY_HREF, useRoute, type Route } from './route';
+import { useNavigation } from './navigation';
+import { MAIN_ID, type AppPage } from './places';
 import { useLoad, type LoadState } from './useLoad';
 import { useReadiness } from './onboarding/useReadiness';
 import {
@@ -42,7 +50,7 @@ import type { UserRecordClient } from './user-record/client';
 import { useUserRecord } from './user-record/useUserRecord';
 import './app.css';
 
-const { Navbar, Logo, Badge, Button } = SecMinds;
+const { Button } = SecMinds;
 
 /** What the app needs to sign Users in; null when this build has no app registration. */
 export interface SignInSetup {
@@ -69,60 +77,47 @@ export function App({
   signIn: SignInSetup | null;
   adminConsentResult: AdminConsentResult | null;
 }) {
-  const route = useRoute();
+  const { place } = useNavigation();
+  const page: AppPage = place.site === 'app' ? place.page : 'home';
   return signIn ? (
-    <SignInPage setup={signIn} adminConsentResult={adminConsentResult} route={route} />
+    <SignInPage setup={signIn} adminConsentResult={adminConsentResult} page={page} />
   ) : (
-    <Page route={route}>{route === 'privacy' ? <PrivacyNotice /> : <SignInNotConfiguredAlert />}</Page>
+    <Page page={page}>
+      <SignInNotConfiguredAlert />
+    </Page>
   );
 }
 
 function SignInPage({
   setup,
   adminConsentResult,
-  route,
+  page,
 }: {
   setup: SignInSetup;
   adminConsentResult: AdminConsentResult | null;
-  route: Route;
+  page: AppPage;
 }) {
   const { state, signIn, signOut } = useAuth(setup.client);
 
-  const actions =
+  const account =
     state.status === 'signed-in' ? (
-      <>
-        <span className="body app-text">{state.user.name}</span>
-        <Button variant="secondary" size="sm" onClick={signOut}>
-          Sign out
-        </Button>
-      </>
+      <UserMenu user={state.user} admin={state.user.admin} onSignOut={signOut} />
     ) : state.status === 'signed-out' || state.status === 'consent-required' || state.status === 'failed' ? (
       <Button size="sm" onClick={signIn}>
         Sign in
       </Button>
     ) : null;
 
-  const admin = state.status === 'signed-in' && state.user.admin;
-
-  if (route === 'privacy' && state.status !== 'signed-in') {
+  if (page !== 'home' && state.status !== 'signed-in') {
     return (
-      <Page actions={actions} route={route}>
-        <PrivacyNotice />
-        <NoUserRecordNotice signedIn={false} />
-      </Page>
-    );
-  }
-
-  if (route === 'admin' && state.status !== 'signed-in') {
-    return (
-      <Page actions={actions} route={route}>
-        <AdminSignInNotice />
+      <Page account={account} page={page}>
+        {state.status === 'starting' ? <CheckingSignIn /> : page === 'settings' ? <SettingsSignInNotice /> : <AdminSignInNotice />}
       </Page>
     );
   }
 
   return (
-    <Page actions={actions} route={route} admin={admin}>
+    <Page account={account} page={page}>
       {adminConsentResult && <AdminConsentResultAlert result={adminConsentResult} />}
       {state.status === 'starting' && <CheckingSignIn />}
       {(state.status === 'signed-out' || state.status === 'redirecting') && (
@@ -136,7 +131,7 @@ function SignInPage({
           userRecord={setup.userRecord}
           checkReadiness={setup.checkReadiness}
           loaders={setup}
-          route={route}
+          page={page}
           onSignOut={signOut}
         />
       )}
@@ -146,35 +141,35 @@ function SignInPage({
 
 /**
  * A new User makes their Contact consent choice before anything else; a returning User is not asked
- * again. On the privacy notice page, a User sees their User record and can change or delete it; once
- * deleted, nothing continues until they sign out.
+ * again. On Settings, a User sees their User record and can change or delete it; once deleted,
+ * nothing continues until they sign out.
  */
 function SignedIn({
   user,
   userRecord,
   checkReadiness,
   loaders,
-  route,
+  page,
   onSignOut,
 }: {
   user: SignedInUser;
   userRecord: UserRecordClient;
   checkReadiness: ReadinessCheck;
   loaders: AnalysisLoaders;
-  route: Route;
+  page: AppPage;
   onSignOut: () => void;
 }) {
+  const { href } = useNavigation();
   const { state, retry, saveContactConsent, changeContactConsent, deleteUserRecord } = useUserRecord(userRecord);
   if (state.status === 'deleted') return <UserRecordDeletedCard onSignOut={onSignOut} />;
   // The API decides who may see the User records; anyone else gets a "not allowed" message here.
-  if (route === 'admin') return <AdminPage client={userRecord} />;
-  if (route === 'privacy') {
+  if (page === 'admin') return <AdminPage client={userRecord} />;
+  if (page === 'settings') {
     return (
       <>
-        <PrivacyNotice />
         {state.status === 'loading' && <LoadingUserRecord />}
         {state.status === 'failed' && <UserRecordFailedAlert message={state.message} onRetry={retry} />}
-        {state.status === 'choice-needed' && <NoUserRecordNotice signedIn />}
+        {state.status === 'choice-needed' && <NoUserRecordYet homeHref={href({ site: 'app', page: 'home' })} />}
         {state.status === 'known' && (
           <UserRecordCard
             record={state.record}
@@ -322,34 +317,18 @@ function AuditEventsSection({ state, reload }: Loaded<AuditEvents>) {
   }
 }
 
-/** `admin` only shows the admin page link; the API checks who may see the User records. */
-function Page({ actions, route, admin = false, children }: { actions?: ReactNode; route: Route; admin?: boolean; children: ReactNode }) {
+const TITLES: Record<AppPage, string> = { home: 'ASR Compass', settings: 'Settings', admin: 'Admin' };
+
+/** Every page of the app: header, one heading, the page's content and the footer. */
+function Page({ account, page, children }: { account?: ReactNode; page: AppPage; children: ReactNode }) {
   return (
     <div className="sm-root app">
-      <Navbar
-        brand={<Logo height={32} />}
-        links={[
-          { label: 'Home', href: HOME_HREF, active: route === 'home' },
-          { label: 'Privacy notice', href: PRIVACY_HREF, active: route === 'privacy' },
-          ...(admin ? [{ label: 'Admin', href: ADMIN_HREF, active: route === 'admin' }] : []),
-        ]}
-        actions={
-          <>
-            <ThemeToggle />
-            {actions}
-          </>
-        }
-      />
+      <AppHeader account={account} />
       <main className="app-main" id={MAIN_ID} tabIndex={-1}>
-        <Badge tone="info">In development</Badge>
-        <h1 className="h1 app-title">ASR Compass</h1>
-        <p className="body-lg app-lead">
-          Move Microsoft Defender Attack Surface Reduction rules from audit to block mode, safely. Get a verdict
-          for every ASR rule based on its audit events, and download a suggested Intune policy to review and
-          deploy yourself. Your security data never leaves your browser.
-        </p>
+        <h1 className="h1 app-title">{TITLES[page]}</h1>
         {children}
       </main>
+      <Footer />
     </div>
   );
 }

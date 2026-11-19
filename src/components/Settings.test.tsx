@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { UserRecord } from '../user-record/client';
-import { UserRecordCard } from './Privacy';
+import { UserRecordCard } from './Settings';
 
 const record: UserRecord = {
   homeTenantId: '11111111-1111-1111-1111-111111111111',
