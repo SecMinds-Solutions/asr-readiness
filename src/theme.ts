@@ -1,5 +1,8 @@
 export type Theme = 'light' | 'dark';
 
+/** What the User chose: a theme, or to follow the system setting. */
+export type ThemePreference = Theme | 'system';
+
 /**
  * Where the User's theme choice is kept in their browser: a preference, never security data. The key
  * keeps the app's former name, so a choice made before the rename to ASR Compass still applies.
@@ -10,6 +13,7 @@ export const THEME_STORAGE_KEY = 'asr-readiness-theme';
 export interface ThemeStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem(key: string): void;
 }
 
 /** The design system theme for the user's system preference. */
@@ -25,8 +29,12 @@ interface ColorSchemeQuery {
 
 export interface ThemeController {
   theme(): Theme;
+  /** The User's choice, or System while they have made none. */
+  preference(): ThemePreference;
   /** The User's choice: applied at once, remembered when the browser allows it. */
   choose(theme: Theme): void;
+  /** Forgets the User's choice and follows the system setting again. */
+  followSystem(): void;
   /** Called whenever the theme changes; returns the function that unsubscribes. */
   subscribe(listener: () => void): () => void;
   /** Stops following the system setting. */
@@ -66,6 +74,16 @@ export function createThemeController(root: HTMLElement, query: ColorSchemeQuery
 
   return {
     theme: () => current,
+    preference: () => chosen ?? 'system',
+    followSystem() {
+      chosen = null;
+      try {
+        storage().removeItem(THEME_STORAGE_KEY);
+      } catch {
+        // Not forgotten in storage, but the system setting applies for this visit.
+      }
+      apply(themeFor(query.matches));
+    },
     choose(theme) {
       chosen = theme;
       try {

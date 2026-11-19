@@ -31,6 +31,9 @@ function memoryStorage(initial: Record<string, string> = {}): ThemeStorage & { v
     setItem: (key, value) => {
       values[key] = value;
     },
+    removeItem: (key) => {
+      Reflect.deleteProperty(values, key);
+    },
   };
 }
 
@@ -40,6 +43,9 @@ const failingStorage: ThemeStorage = {
   },
   setItem: () => {
     throw new Error('QuotaExceededError');
+  },
+  removeItem: () => {
+    throw new Error('SecurityError');
   },
 };
 
@@ -120,5 +126,47 @@ describe('createThemeController', () => {
     unsubscribe();
     query.fire(false);
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the preference: System until the User chooses, then their choice', () => {
+    const controller = createThemeController(document.createElement('html'), fakeQuery(true), () => memoryStorage());
+    expect(controller.preference()).toBe('system');
+    controller.choose('light');
+    expect(controller.preference()).toBe('light');
+  });
+
+  it('reads a remembered choice as the preference', () => {
+    const controller = createThemeController(document.createElement('html'), fakeQuery(true), () =>
+      memoryStorage({ [THEME_STORAGE_KEY]: 'light' }),
+    );
+    expect(controller.preference()).toBe('light');
+  });
+
+  it('follows the system again after System is chosen, forgets the choice and tells subscribers', () => {
+    const root = document.createElement('html');
+    const query = fakeQuery(true);
+    const storage = memoryStorage({ [THEME_STORAGE_KEY]: 'light' });
+    const controller = createThemeController(root, query, () => storage);
+    const listener = vi.fn();
+    controller.subscribe(listener);
+
+    controller.followSystem();
+    expect(root.dataset.theme).toBe('dark');
+    expect(controller.preference()).toBe('system');
+    expect(storage.values[THEME_STORAGE_KEY]).toBeUndefined();
+    expect(listener).toHaveBeenCalled();
+
+    query.fire(false);
+    expect(root.dataset.theme).toBe('light');
+  });
+
+  it('follows the system for the visit when the choice cannot be forgotten in storage', () => {
+    const root = document.createElement('html');
+    const query = fakeQuery(false);
+    const controller = createThemeController(root, query, () => failingStorage);
+    controller.choose('dark');
+    controller.followSystem();
+    expect(root.dataset.theme).toBe('light');
+    expect(controller.preference()).toBe('system');
   });
 });

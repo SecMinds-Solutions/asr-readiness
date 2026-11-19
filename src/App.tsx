@@ -25,7 +25,7 @@ import { isAnalysisPage, Page, PAGE_HEADINGS, ShellPage } from './components/App
 import {
   NoUserRecordYet,
   SettingsSignInNotice,
-  UserRecordCard,
+  SettingsView,
   UserRecordDeletedCard,
 } from './components/Settings';
 import { TenantStatus } from './components/TenantStatus';
@@ -266,7 +266,7 @@ function SettingsContent({ record }: { record: ReturnType<typeof useUserRecord> 
       return null;
     case 'known':
       return (
-        <UserRecordCard
+        <SettingsView
           record={state.record}
           changing={state.changing}
           error={state.error}

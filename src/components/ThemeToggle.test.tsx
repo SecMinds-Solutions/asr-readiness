@@ -10,7 +10,11 @@ function setup(prefersDark = false) {
     removeEventListener: () => {},
   };
   const values: Record<string, string> = {};
-  const storage: ThemeStorage = { getItem: (k) => values[k] ?? null, setItem: (k, v) => void (values[k] = v) };
+  const storage: ThemeStorage = {
+    getItem: (k) => values[k] ?? null,
+    setItem: (k, v) => void (values[k] = v),
+    removeItem: (k) => void Reflect.deleteProperty(values, k),
+  };
   const root = document.createElement('html');
   const controller = createThemeController(root, query, () => storage);
   render(

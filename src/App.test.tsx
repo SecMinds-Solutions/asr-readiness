@@ -401,7 +401,7 @@ describe('App: Settings and the User record', () => {
     const alert = await alertWith('Your User record could not be loaded');
     expect(alert).toHaveTextContent('HTTP 500');
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
   });
 
   it('shows a signed-in User their stored User record on Settings, opened from the user menu', async () => {
@@ -412,20 +412,23 @@ describe('App: Settings and the User record', () => {
     expect(await findPageHeading('Settings')).toBeInTheDocument();
     expect(screen.getByRole('main')).toHaveFocus();
     expect(screen.queryByRole('heading', { name: 'Privacy notice' })).toBeNull();
-    const card = (await screen.findByRole('heading', { name: 'Your User record' })).closest('article') as HTMLElement;
-    for (const value of [ada.homeTenantId, 'ada@contoso.com', 'Ada', 'Lovelace', 'Not given']) {
-      expect(within(card).getAllByText(value).length).toBeGreaterThan(0);
+    const profile = await screen.findByRole('region', { name: 'Profile' });
+    for (const value of [ada.homeTenantId, 'ada@contoso.com', 'Ada', 'Lovelace']) {
+      expect(within(profile).getAllByText(value).length).toBeGreaterThan(0);
     }
+    expect(screen.getByRole('switch', { name: /SecMinds may email me/ })).not.toBeChecked();
   });
 
   it('withdraws Contact consent and shows the new choice', async () => {
     const userRecord = fakeUserRecord({ ...storedRecord, contactConsent: true });
     goTo('/app/settings');
     renderApp(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw Contact consent' }));
+    const consent = await screen.findByRole('switch', { name: /SecMinds may email me/ });
+    expect(consent).toBeChecked();
+    fireEvent.click(consent);
     expect(userRecord.saveContactConsent).toHaveBeenCalledWith(false);
-    expect(await screen.findByText('Not given')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Give Contact consent' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('switch', { name: /SecMinds may email me/ })).not.toBeChecked());
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
   });
 
   it('keeps the record on screen and says why when withdrawing fails', async () => {
@@ -433,9 +436,9 @@ describe('App: Settings and the User record', () => {
     vi.mocked(userRecord.saveContactConsent).mockRejectedValueOnce(new Error('The User record service answered HTTP 500.'));
     goTo('/app/settings');
     renderApp(<App signIn={setup(signedIn(), userRecord)} adminConsentResult={null} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw Contact consent' }));
+    fireEvent.click(await screen.findByRole('switch', { name: /SecMinds may email me/ }));
     expect(await alertWith('Not changed')).toHaveTextContent('HTTP 500');
-    expect(screen.getByText('Given')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /SecMinds may email me/ })).toBeChecked();
   });
 
   it('deletes the User record only after confirmation, then offers only sign-out', async () => {
@@ -449,7 +452,7 @@ describe('App: Settings and the User record', () => {
     expect(signIn.userRecord.deleteUserRecord).toHaveBeenCalledOnce();
     const done = (await screen.findByText('Your User record is deleted')).closest('[role="status"]') as HTMLElement;
     expect(done).toHaveTextContent('Nothing about you remains in storage');
-    expect(screen.queryByRole('heading', { name: 'Your User record' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Profile' })).toBeNull();
     navigateTo('/app/');
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
     expect(signIn.checkReadiness).not.toHaveBeenCalled();
@@ -465,7 +468,7 @@ describe('App: Settings and the User record', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Delete my User record' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
     expect(await alertWith('Not changed')).toHaveTextContent('could not be deleted');
-    expect(screen.getByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument();
   });
 
   it('says nothing is stored yet for a signed-in User who has not made the Contact consent choice', async () => {
@@ -781,7 +784,7 @@ describe('App: pages of the Analysis', () => {
     await openPage('Suggested policy');
     expect(await findPageHeading('Suggested policy')).toBeInTheDocument();
     await openPage('Settings');
-    expect(await screen.findByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
     await openPage('Overview');
     expect(await findPageHeading('Overview')).toBeInTheDocument();
     expect(signIn.checkReadiness).toHaveBeenCalledOnce();
@@ -822,7 +825,7 @@ describe('App: pages of the Analysis', () => {
     const signIn = setup(signedIn());
     goTo('/app/settings');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    expect(await screen.findByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
     expect(signIn.checkReadiness).not.toHaveBeenCalled();
     await openPage('Verdicts');
     await waitFor(() => expect(signIn.loadRuleOverview).toHaveBeenCalledOnce());
@@ -837,7 +840,7 @@ describe('App: pages of the Analysis', () => {
     await openPage('ASR rules');
     expect(await screen.findByRole('heading', { name: 'No devices to analyse yet' })).toBeInTheDocument();
     await openPage('Settings');
-    expect(await screen.findByRole('heading', { name: 'Your User record' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
     expect(signIn.loadRuleOverview).not.toHaveBeenCalled();
   });
 

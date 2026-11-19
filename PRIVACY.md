@@ -9,7 +9,7 @@ linked from every page of the website and the app.
 This website does not sign you in and sets no cookies. It uses no analytics, trackers or
 third-party scripts, and loads nothing from Microsoft's sign-in service. Only the app, at its own
 address, signs you in. Your light or dark mode choice is kept in your browser's local storage, on
-this website and in the app.
+this website and in the app; choosing System under Settings in the app removes it.
 
 ## What is stored about you
 
