@@ -31,7 +31,7 @@ function input({
   groupsTotal,
 }: {
   policies?: IntunePolicy[];
-  periods?: AuditPeriods;
+  periods?: AuditPeriods | null;
   groups?: Group[];
   guid?: string;
   groupsTotal?: { events: number; groups: number };
@@ -102,8 +102,24 @@ describe('verdictsFor', () => {
       expect(found).toMatchObject({ verdict: 'No evidence', reason: expect.stringMatching(/conflict/i) });
     });
 
-    it('when no device reports the rule in Audit mode', () => {
-      expect(verdictOf(input({ periods: {} }))).toBe('No evidence');
+    it('when the Audit period cannot be measured, even without Audit events and with every device in Audit mode', () => {
+      const found = assessmentOf(input({ periods: null }));
+      expect(found).toMatchObject({ verdict: 'No evidence', reason: expect.stringContaining('cannot be measured') });
+      expect(found.kind === 'verdict' && found.reason).not.toMatch(/for only 0 days/);
+    });
+
+    it('says which groups are in Audit mode when the Audit period cannot be measured', () => {
+      const policies = [policy('Pilot', { [ADOBE]: 'audit' }, ['g1']), policy('Rest', { [ADOBE]: 'off' }, ['g2'])];
+      expect(assessmentOf(input({ policies, periods: null }))).toMatchObject({
+        verdict: 'No evidence',
+        reason: expect.stringContaining('Only the groups of Pilot are in Audit mode.'),
+      });
+    });
+
+    it('when the Audit period of the rule is not known, without claiming no device reports it in Audit mode', () => {
+      const found = assessmentOf(input({ periods: {} }));
+      expect(found).toMatchObject({ verdict: 'No evidence', reason: expect.stringContaining('Audit period of this rule is not known') });
+      expect(found.kind === 'verdict' && found.reason).not.toMatch(/No device reports/);
     });
 
     it('when the Audit period covers fewer devices than Coverage counts in Audit mode', () => {

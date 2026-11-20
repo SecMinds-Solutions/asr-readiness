@@ -11,8 +11,8 @@ export interface AnalysisLoaders {
   loadRuleOverview: () => Promise<RuleOverview>;
   /** Audit events per ASR rule, application and path in the Observation window. */
   loadAuditEvents: () => Promise<AuditEvents>;
-  /** Per ASR rule GUID: how long devices have reported it in Audit mode without a break. */
-  loadAuditPeriods: () => Promise<AuditPeriods>;
+  /** Per ASR rule GUID: how long it has been in Audit mode, or null while no source can measure that. */
+  loadAuditPeriods: () => Promise<AuditPeriods | null>;
 }
 
 export type Loaded<T> = { state: LoadState<T>; reload: () => void };
@@ -21,7 +21,7 @@ export type Loaded<T> = { state: LoadState<T>; reload: () => void };
 export interface Analysis {
   overview: Loaded<RuleOverview>;
   events: Loaded<AuditEvents>;
-  periods: Loaded<AuditPeriods>;
+  periods: Loaded<AuditPeriods | null>;
   /** When the last part was read; null while a part is loading or has failed. */
   readAt: Date | null;
   /** Reads all three parts again. */

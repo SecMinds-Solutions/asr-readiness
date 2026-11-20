@@ -32,7 +32,8 @@ export type RuleAssessment =
 export interface VerdictInput {
   modes: RuleModes;
   coverage: Coverage | null;
-  auditPeriods: AuditPeriods;
+  /** Null while no source can measure how long a rule has been in Audit mode (see ADR-0007). */
+  auditPeriods: AuditPeriods | null;
   auditEvents: AuditEvents;
 }
 
@@ -144,10 +145,19 @@ function judge(rule: AsrRule, state: RuleState, coverage: VerdictCoverage | null
   const mode = intuneAuditMode(state);
   if (!mode.inAudit) return { verdict: 'No evidence', reason: mode.reason };
 
-  // Coverage and the Audit period come from separate queries; both must see devices in Audit mode.
-  const period = input.auditPeriods[rule.guid];
-  if (!period || period.devices === 0 || !coverage || coverage.auditDevices === 0) {
+  if (!coverage || coverage.auditDevices === 0) {
     return { verdict: 'No evidence', reason: `No device reports this rule in Audit mode.${mode.note}` };
+  }
+  if (!input.auditPeriods) {
+    return {
+      verdict: 'No evidence',
+      reason: `How long this rule has been in Audit mode cannot be measured yet, so the Minimum audit period of ${MINIMUM_AUDIT_PERIOD_DAYS} days cannot be checked.${mode.note}`,
+    };
+  }
+  // The Audit period must speak for every device Coverage counts in Audit mode.
+  const period = input.auditPeriods[rule.guid];
+  if (!period || period.devices === 0) {
+    return { verdict: 'No evidence', reason: `The Audit period of this rule is not known.${mode.note}` };
   }
   if (period.devices < coverage.auditDevices) {
     return {

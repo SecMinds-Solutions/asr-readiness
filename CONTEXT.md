@@ -50,7 +50,7 @@ The Verdict for a rule whose audit events are too many, too spread out, or come 
 _Avoid_: too noisy, failed
 
 **No evidence**:
-The Verdict for a rule that is not in Audit mode, or not for the Minimum audit period, so its audit events say nothing yet. This includes a Conflict, a rule no device reports in Audit mode, and a rule whose audit events advanced hunting does not record.
+The Verdict for a rule that is not in Audit mode, or not for the Minimum audit period, so its audit events say nothing yet. This includes a Conflict, a rule no device reports in Audit mode, a rule whose Audit period cannot be measured, and a rule whose audit events advanced hunting does not record.
 _Avoid_: unknown, no data
 
 **Already blocking**:
@@ -63,7 +63,7 @@ The period of audit events an Analysis looks at: the last 30 days.
 How long a rule's Audit period must be before its absence of events means anything: 14 days.
 
 **Audit period**:
-How long a rule has been in Audit mode, measured on the devices that now report it in Audit mode: since when each has reported Audit every day without a break, where a day that is not Audit or more than 3 days without a report is a break, and the period ends at the device's last report. A device that switched to Audit mode during its latest day counts with 0 days. The shortest period across those devices is the rule's Audit period; when it covers fewer devices than Coverage, there is no Audit period. It cannot be longer than the 30 days advanced hunting keeps.
+How long a rule has been in Audit mode. The app has no source for it yet, so a rule in Audit mode gets No evidence until one is chosen. Advanced hunting keeps only each device's latest report of its Rule modes, so it cannot tell.
 _Avoid_: audit duration, audit age
 
 **User-writable location**:

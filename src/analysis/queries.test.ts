@@ -1,5 +1,5 @@
 import { RULES_IN_ADVANCED_HUNTING } from './asrRules';
-import { ASR_RULE_MODES_QUERY, AUDIT_PERIOD_QUERY, AUDIT_EVENT_GROUPS_PER_RULE, AUDIT_EVENT_GROUPS_QUERY, AUDIT_EVENT_TOTALS_QUERY, auditEventFilter } from './queries';
+import { ASR_RULE_MODES_QUERY, AUDIT_EVENT_GROUPS_PER_RULE, AUDIT_EVENT_GROUPS_QUERY, AUDIT_EVENT_TOTALS_QUERY, auditEventFilter } from './queries';
 
 const auditActionTypes = RULES_IN_ADVANCED_HUNTING.map((rule) => rule.auditActionType);
 const byGroup =
@@ -52,28 +52,6 @@ describe('ASR_RULE_MODES_QUERY', () => {
         ' | where gettype(States) == "dictionary"' +
         ' | mv-expand kind=array State = States' +
         ' | summarize Devices = count() by Rule = tostring(State[0]), Mode = tostring(State[1])',
-    );
-  });
-});
-
-describe('AUDIT_PERIOD_QUERY', () => {
-  it('finds, per rule, since when each device now in Audit mode has reported Audit every day without a break, aggregated in KQL', () => {
-    expect(AUDIT_PERIOD_QUERY).toBe(
-      'DeviceTvmInfoGathering' +
-        ' | where Timestamp > ago(30d)' +
-        ' | extend States = parse_json(tostring(AdditionalFields.AsrConfigurationStates))' +
-        ' | where gettype(States) == "dictionary"' +
-        ' | mv-expand kind=array State = States' +
-        ' | extend Rule = tostring(State[0]), IsAudit = iff(tostring(State[1]) =~ "Audit", 1, 0)' +
-        ' | summarize InAudit = min(IsAudit), FirstReport = min(Timestamp), LastReport = max(Timestamp),' +
-        ' LastNotAudit = maxif(Timestamp, IsAudit == 0) by DeviceId, Rule, Day = startofday(Timestamp)' +
-        ' | extend EndsInAudit = isnull(LastNotAudit) or LastNotAudit < LastReport' +
-        ' | order by DeviceId asc, Rule asc, Day asc' +
-        ' | extend StartsRun = InAudit == 1 and (prev(DeviceId) != DeviceId or prev(Rule) != Rule or prev(InAudit) == 0 or FirstReport - prev(LastReport) > 3d)' +
-        ' | summarize arg_max(Day, InAudit, EndsInAudit, LastReport), AuditSince = maxif(FirstReport, StartsRun) by DeviceId, Rule' +
-        ' | where EndsInAudit and LastReport > ago(7d)' +
-        ' | extend Days = iff(InAudit == 1, toint((LastReport - AuditSince) / 1d), 0)' +
-        ' | summarize Devices = count(), ShortestDays = min(Days) by Rule',
     );
   });
 });

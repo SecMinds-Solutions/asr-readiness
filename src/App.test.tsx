@@ -101,7 +101,7 @@ function setup(
   checkReadiness: ReadinessCheck = async () => ({ status: 'ready', devices: 12 }),
   loadRuleOverview: () => Promise<RuleOverview> = async () => emptyOverview,
   loadAuditEvents: () => Promise<AuditEvents> = async () => auditEventsFromRows([], []),
-  loadAuditPeriods: () => Promise<AuditPeriods> = async () => ({}),
+  loadAuditPeriods: () => Promise<AuditPeriods | null> = async () => ({}),
 ): SignInSetup {
   return {
     client,
@@ -896,6 +896,17 @@ describe('App: Verdicts', () => {
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
     expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
     expect(signIn.loadAuditPeriods).toHaveBeenCalledOnce();
+  });
+
+  it('gives No evidence and says why when how long a rule has been in Audit mode cannot be measured', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => null);
+    goTo('/app/verdicts');
+    renderApp(<App signIn={signIn} adminConsentResult={null} />);
+    const verdicts = await screen.findByRole('table', { name: /Verdict, Coverage and reason/ });
+    const adobe = within(verdicts).getByRole('cell', { name: 'Block Adobe Reader from creating child processes' }).closest('tr') as HTMLElement;
+    expect(within(adobe).getByText('No evidence')).toBeInTheDocument();
+    expect(within(adobe).getByText('12 of 12 devices')).toBeInTheDocument();
+    expect(adobe).toHaveTextContent('How long this rule has been in Audit mode cannot be measured yet');
   });
 
   it('offers the Suggested policy with the rules that are ready, on its own page', async () => {

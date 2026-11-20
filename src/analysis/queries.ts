@@ -63,36 +63,3 @@ export const ASR_RULE_MODES_QUERY =
   ' | summarize arg_max(Timestamp, AdditionalFields) by DeviceId' +
   asrStates +
   ' | summarize Devices = count() by Rule = tostring(State[0]), Mode = tostring(State[1])';
-
-/**
- * A device that sends no report for more than this many days, such as a laptop that was off over a
- * weekend, may have changed Rule mode unseen: its Audit period starts again after the gap.
- */
-export const REPORT_GAP_DAYS = 3;
-
-/**
- * Per ASR rule: for each device whose latest report (within RULE_MODE_REPORT_DAYS) has the rule in
- * Audit mode, since when it has reported Audit without a break, within the Observation window. A
- * day counts as Audit only when every report that day says Audit; a day that is not, or more than
- * REPORT_GAP_DAYS between one day's last report and the next day's first, breaks the run, which
- * starts at its first report. The period runs to the device's last report, not to now, so time
- * without reports never counts as Audit. A
- * device that switched to Audit during its latest day is counted with 0 days, so that it keeps the
- * rule below the Minimum audit period. Only the number of such devices and the shortest Audit
- * period in whole days come back.
- */
-export const AUDIT_PERIOD_QUERY =
-  'DeviceTvmInfoGathering' +
-  ` | where Timestamp > ago(${OBSERVATION_WINDOW_DAYS}d)` +
-  asrStates +
-  ' | extend Rule = tostring(State[0]), IsAudit = iff(tostring(State[1]) =~ "Audit", 1, 0)' +
-  ' | summarize InAudit = min(IsAudit), FirstReport = min(Timestamp), LastReport = max(Timestamp),' +
-  ' LastNotAudit = maxif(Timestamp, IsAudit == 0) by DeviceId, Rule, Day = startofday(Timestamp)' +
-  ' | extend EndsInAudit = isnull(LastNotAudit) or LastNotAudit < LastReport' +
-  ' | order by DeviceId asc, Rule asc, Day asc' +
-  ` | extend StartsRun = InAudit == 1 and (prev(DeviceId) != DeviceId or prev(Rule) != Rule or prev(InAudit) == 0 or FirstReport - prev(LastReport) > ${REPORT_GAP_DAYS}d)` +
-  ' | summarize arg_max(Day, InAudit, EndsInAudit, LastReport), AuditSince = maxif(FirstReport, StartsRun) by DeviceId, Rule' +
-  // Compared like ASR_RULE_MODES_QUERY does, by report time, so both count the same devices.
-  ` | where EndsInAudit and LastReport > ago(${RULE_MODE_REPORT_DAYS}d)` +
-  ' | extend Days = iff(InAudit == 1, toint((LastReport - AuditSince) / 1d), 0)' +
-  ' | summarize Devices = count(), ShortestDays = min(Days) by Rule';
