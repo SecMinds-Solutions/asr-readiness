@@ -7,7 +7,7 @@ import { fetchRuleOverview } from './ruleOverview';
 const ADOBE = '7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c';
 
 const intunePages: Record<string, unknown[]> = {
-  '/deviceManagement/configurationPolicies?$select=id,name,platforms': [{ id: 'p1', name: 'ASR pilot', platforms: 'windows10' }],
+  '/deviceManagement/configurationPolicies?$select=id,name,platforms,createdDateTime,lastModifiedDateTime': [{ id: 'p1', name: 'ASR pilot', platforms: 'windows10' }],
   '/deviceManagement/configurationPolicies/p1/settings': asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value,
   '/deviceManagement/configurationPolicies/p1/assignments': groupAssignment.value,
 };

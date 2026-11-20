@@ -5,14 +5,16 @@ import { checkReadiness, createReadinessCheck } from './readiness';
 
 type Answer<T> = T | GraphError | Error;
 
-function fakeGraph({ hunting, intune }: { hunting: Answer<unknown>; intune: Answer<unknown> }) {
+const AUDIT_LOG_CHECK_PATH = '/deviceManagement/auditEvents?$top=1&$select=id';
+
+function fakeGraph({ hunting, intune, auditLog = { value: [] } }: { hunting: Answer<unknown>; intune: Answer<unknown>; auditLog?: Answer<unknown> }) {
   const answer = async (value: Answer<unknown>) => {
     if (value instanceof Error) throw value;
     return value;
   };
   // The fake answers whatever the caller expects; checkReadiness validates the shape itself.
   const graph: GraphClient = {
-    get: async <T,>() => (await answer(intune)) as T,
+    get: async <T,>(path: string) => (await answer(path === AUDIT_LOG_CHECK_PATH ? auditLog : intune)) as T,
     post: async <T,>() => (await answer(hunting)) as T,
     getAll: async () => Promise.reject(new Error('not used')),
   };
@@ -32,6 +34,17 @@ describe('checkReadiness', () => {
     expect(graph.post).toHaveBeenCalledWith('/security/runHuntingQuery', { Query: HUNTING_CHECK_QUERY }, { timeoutMs: HUNTING_TIMEOUT_MS });
     expect(HUNTING_CHECK_QUERY).toBe('DeviceInfo | where OnboardingStatus == "Onboarded" | summarize Devices = dcount(DeviceId)');
     expect(graph.get).toHaveBeenCalledWith('/deviceManagement/configurationPolicies?$top=1&$select=id', { version: 'beta' });
+    expect(graph.get).toHaveBeenCalledWith(AUDIT_LOG_CHECK_PATH, { version: 'v1.0' });
+  });
+
+  it('needs Intune access when Intune refuses its audit log, even if its policies can be read', async () => {
+    const graph = fakeGraph({ hunting: devices(12), intune: policies, auditLog: forbidden('Audit data read is needed.') });
+    await expect(checkReadiness(graph)).resolves.toEqual({
+      status: 'access-needed',
+      advancedHunting: 'allowed',
+      intune: 'refused',
+      details: ['Intune audit log: Audit data read is needed.'],
+    });
   });
 
   it('is ready when advanced hunting has Defender for Endpoint devices and Intune policies can be read', async () => {
@@ -92,7 +105,9 @@ describe('checkReadiness', () => {
     const fetchFn: typeof fetch = async (input) =>
       String(input).includes('runHuntingQuery')
         ? new Response(JSON.stringify(devices(5)))
-        : new Response(JSON.stringify({ error: { code: 'UnknownError', message: wrapped } }), { status: 401 });
+        : String(input).includes('auditEvents')
+          ? new Response(JSON.stringify({ value: [] }))
+          : new Response(JSON.stringify({ error: { code: 'UnknownError', message: wrapped } }), { status: 401 });
     const graph = createGraphClient(async () => 'graph-token', { fetchFn, sleep: async () => {} });
     await expect(checkReadiness(graph)).resolves.toEqual({
       status: 'access-needed',

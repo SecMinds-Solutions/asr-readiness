@@ -21,6 +21,11 @@ export const PERMISSION_PURPOSES: Record<string, { purpose: string; access: stri
     purpose: 'Reads your Intune ASR policies and their assignments.',
     access: 'Delegated, read-only',
   },
+  'DeviceManagementApps.Read.All': {
+    purpose:
+      'Reads the Intune audit log, to see when your ASR policies and their assignments last changed. Microsoft puts the audit log under this permission, which also allows reading Intune apps; ASR Compass reads nothing else with it.',
+    access: 'Delegated, read-only',
+  },
   'UserRecord.ReadWrite': {
     purpose: "Reads, changes and deletes your own User record through ASR Compass's own API. It gives no access to Microsoft Graph.",
     access: 'Delegated, your own User record only',

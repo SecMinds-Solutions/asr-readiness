@@ -21,10 +21,12 @@ export const SIGN_IN_SCOPES: readonly string[] = [
   'User.Read',
   'ThreatHunting.Read.All',
   'DeviceManagementConfiguration.Read.All',
+  // Only for the Intune audit log, which tells when policy assignments changed (ADR-0002, ADR-0007).
+  'DeviceManagementApps.Read.All',
 ];
 
-/** The Microsoft Graph scopes an Analysis reads with; both are among the sign-in scopes. */
-export const GRAPH_SCOPES: readonly string[] = ['ThreatHunting.Read.All', 'DeviceManagementConfiguration.Read.All'];
+/** The Microsoft Graph scopes an Analysis reads with; all are among the sign-in scopes. */
+export const GRAPH_SCOPES: readonly string[] = ['ThreatHunting.Read.All', 'DeviceManagementConfiguration.Read.All', 'DeviceManagementApps.Read.All'];
 
 /**
  * The scope the app registration exposes for the app's own API, which stores the User record.

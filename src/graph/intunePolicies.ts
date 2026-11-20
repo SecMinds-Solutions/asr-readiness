@@ -17,17 +17,24 @@ async function inBatches<T, R>(items: T[], work: (item: T) => Promise<R>): Promi
 
 /**
  * The Tenant's Windows settings catalog policies (Graph beta, the only version that has them)
- * with their settings; assignments are read only for policies that hold ASR rules, and passed on
+ * with their settings and when they were created and last changed; assignments are read only for policies that hold ASR rules, and passed on
  * as Graph returns them for the analysis to read.
  */
 export async function fetchIntunePolicies(graph: GraphClient): Promise<IntunePolicy[]> {
-  const listed = await graph.getAll<Json>(`${BASE}?$select=id,name,platforms`, { version: 'beta' });
+  const listed = await graph.getAll<Json>(`${BASE}?$select=id,name,platforms,createdDateTime,lastModifiedDateTime`, { version: 'beta' });
   const windows = listed.filter((policy) => String(policy['platforms'] ?? '').toLowerCase().includes('windows10'));
   return inBatches(windows, async (policy) => {
     const id = String(policy['id']);
     const path = `${BASE}/${encodeURIComponent(id)}`;
     const settings = await graph.getAll<unknown>(`${path}/settings`, { version: 'beta' });
     const assignments = hasAsrRules(settings) ? await graph.getAll<unknown>(`${path}/assignments`, { version: 'beta' }) : [];
-    return { id, name: String(policy['name'] ?? id), settings, assignments };
+    return {
+      id,
+      name: String(policy['name'] ?? id),
+      settings,
+      assignments,
+      createdDateTime: policy['createdDateTime'],
+      lastModifiedDateTime: policy['lastModifiedDateTime'],
+    };
   });
 }

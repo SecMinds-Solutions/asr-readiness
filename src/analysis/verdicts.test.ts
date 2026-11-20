@@ -1,5 +1,4 @@
 import { auditEventsFromRows } from './auditEvents';
-import type { AuditPeriods } from './auditPeriods';
 import { asrSettings, choice, toGroup } from './fixtures/intunePolicies';
 import { groupsResult, totalsResult } from './fixtures/huntingResults';
 import { ruleModesFromPolicies, type IntunePolicy } from './intuneRuleModes';
@@ -24,14 +23,14 @@ type Group = { application?: string; folder?: string; path: string; events: numb
 
 function input({
   policies = [policy('ASR', { [ADOBE]: 'audit' })],
-  periods = { [ADOBE]: { devices: 40, shortestDays: 20 } },
+  periods = { [ADOBE]: { days: 20, atLeast: false } },
   auditDevices = 40,
   groups = [],
   guid = ADOBE,
   groupsTotal,
 }: {
   policies?: IntunePolicy[];
-  periods?: AuditPeriods | null;
+  periods?: VerdictInput['auditPeriods'];
   groups?: Group[];
   guid?: string;
   groupsTotal?: { events: number; groups: number };
@@ -102,17 +101,11 @@ describe('verdictsFor', () => {
       expect(found).toMatchObject({ verdict: 'No evidence', reason: expect.stringMatching(/conflict/i) });
     });
 
-    it('when the Audit period cannot be measured, even without Audit events and with every device in Audit mode', () => {
-      const found = assessmentOf(input({ periods: null }));
-      expect(found).toMatchObject({ verdict: 'No evidence', reason: expect.stringContaining('cannot be measured') });
-      expect(found.kind === 'verdict' && found.reason).not.toMatch(/for only 0 days/);
-    });
-
-    it('says which groups are in Audit mode when the Audit period cannot be measured', () => {
-      const policies = [policy('Pilot', { [ADOBE]: 'audit' }, ['g1']), policy('Rest', { [ADOBE]: 'off' }, ['g2'])];
-      expect(assessmentOf(input({ policies, periods: null }))).toMatchObject({
+    it('when the Intune audit log could not be read, with the reason', () => {
+      const found = assessmentOf(input({ periods: { failed: 'Intune is throttled.' } }));
+      expect(found).toMatchObject({
         verdict: 'No evidence',
-        reason: expect.stringContaining('Only the groups of Pilot are in Audit mode.'),
+        reason: 'The Intune audit log could not be read, so the Audit period is not known: Intune is throttled.',
       });
     });
 
@@ -122,30 +115,40 @@ describe('verdictsFor', () => {
       expect(found.kind === 'verdict' && found.reason).not.toMatch(/No device reports/);
     });
 
-    it('when the Audit period covers fewer devices than Coverage counts in Audit mode', () => {
-      const found = assessmentOf(input({ periods: { [ADOBE]: { devices: 39, shortestDays: 20 } }, auditDevices: 40 }));
-      expect(found).toMatchObject({ verdict: 'No evidence', reason: expect.stringContaining('39 of the 40 devices') });
-    });
-
     it('when Coverage counts no device in Audit mode, even if an Audit period was found', () => {
       expect(assessmentOf(input({ auditDevices: 0 }))).toMatchObject({ verdict: 'No evidence', reason: expect.stringContaining('No device reports') });
     });
 
-    it.each([0, 1, 13])('when the shortest Audit period is %i days, below the Minimum audit period of 14', (days) => {
-      const found = assessmentOf(input({ periods: { [ADOBE]: { devices: 40, shortestDays: days } } }));
-      expect(found).toMatchObject({ verdict: 'No evidence', reason: expect.stringContaining(`for only ${days} day`) });
+    it.each([
+      [0, '0 days ago'],
+      [1, '1 day ago'],
+      [13, '13 days ago'],
+    ])('when the Audit period is %i days, below the Minimum audit period of 14', (days, ago) => {
+      const found = assessmentOf(input({ periods: { [ADOBE]: { days, atLeast: false } } }));
+      expect(found).toMatchObject({
+        verdict: 'No evidence',
+        reason: `Intune changed a policy that sets this rule, or its assignments, ${ago}; the Minimum audit period is 14 days.`,
+      });
     });
 
     it('when advanced hunting records no Audit events for the rule', () => {
-      const value = input({ guid: WEBSHELL, policies: [policy('ASR', { [WEBSHELL]: 'audit' })], periods: { [WEBSHELL]: { devices: 3, shortestDays: 20 } }, auditDevices: 3 });
+      const value = input({ guid: WEBSHELL, policies: [policy('ASR', { [WEBSHELL]: 'audit' })], periods: { [WEBSHELL]: { days: 20, atLeast: false } }, auditDevices: 3 });
       expect(assessmentOf(value, WEBSHELL)).toMatchObject({ verdict: 'No evidence', reason: expect.stringMatching(/records no Audit events/) });
     });
   });
 
   describe('Ready to block', () => {
-    it.each([14, 15, 30])('in Audit mode for %i days on every device and no Audit events in the Observation window', (days) => {
-      const found = assessmentOf(input({ periods: { [ADOBE]: { devices: 40, shortestDays: days } } }));
-      expect(found).toMatchObject({ verdict: 'Ready to block', reason: expect.stringContaining('no Audit events in the last 30 days') });
+    it.each([14, 15, 29])('when Intune has not changed the rule for %i days and it has no Audit events in the Observation window', (days) => {
+      const found = assessmentOf(input({ periods: { [ADOBE]: { days, atLeast: false } } }));
+      expect(found).toMatchObject({
+        verdict: 'Ready to block',
+        reason: `Intune has not changed the policies that set this rule, or their assignments, for ${days} days, and there are no Audit events in the last 30 days.`,
+      });
+    });
+
+    it('says "at least" when no change was found in the audit log that was read', () => {
+      const found = assessmentOf(input({ periods: { [ADOBE]: { days: 30, atLeast: true } } }));
+      expect(found).toMatchObject({ verdict: 'Ready to block', reason: expect.stringContaining('for at least 30 days, and there are no Audit events') });
     });
 
     it('also when only some groups are in Audit mode, and says which', () => {
@@ -174,7 +177,7 @@ describe('verdictsFor', () => {
       const value = input({
         guid: LSASS,
         policies: [policy('ASR', { [LSASS]: 'audit' })],
-        periods: { [LSASS]: { devices: 40, shortestDays: 20 } },
+        periods: { [LSASS]: { days: 20, atLeast: false } },
         groups: [
           { application: 'agent.exe', folder: 'C:\\Program Files\\Vendor\\agent.exe', path: 'C:\\Windows\\System32\\lsass.exe', events: 9 },
           { application: 'updater.exe', folder: 'C:\\Program Files\\Vendor', path: 'C:\\Windows\\System32\\lsass.exe', events: 1 },

@@ -309,7 +309,7 @@ function AnalysisContent({
     case 'failed':
       return <CheckFailedAlert message={state.message} onRetry={checkAgain} />;
     case 'ready': {
-      const parts = [analysis.overview.state, analysis.events.state, analysis.periods.state];
+      const parts = [analysis.overview.state, analysis.events.state, analysis.changes.state];
       return (
         <>
           <TenantStatus

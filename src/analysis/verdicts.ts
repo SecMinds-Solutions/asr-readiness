@@ -1,7 +1,7 @@
 // Verdicts (CONTEXT.md): the outcome of an Analysis for each ASR rule. Pure: no network, storage or React.
 import { ASR_RULES, type AsrRule } from './asrRules';
 import type { AuditEventGroup, AuditEvents, RuleAuditEvents } from './auditEvents';
-import type { AuditPeriod, AuditPeriods } from './auditPeriods';
+import { auditPeriodsFailed, type AuditPeriod, type AuditPeriodsResult } from './auditPeriods';
 import type { RuleModes, RuleState } from './intuneRuleModes';
 import type { Coverage } from './ruleOverview';
 import { MAX_SUGGESTED_EXCLUSIONS, MINIMUM_AUDIT_PERIOD_DAYS, OBSERVATION_WINDOW_DAYS } from './thresholds';
@@ -32,14 +32,17 @@ export type RuleAssessment =
 export interface VerdictInput {
   modes: RuleModes;
   coverage: Coverage | null;
-  /** Null while no source can measure how long a rule has been in Audit mode (see ADR-0007). */
-  auditPeriods: AuditPeriods | null;
+  /** Failed when the Intune audit log could not be read: rules in Audit mode then get No evidence, the rest their Verdict. */
+  auditPeriods: AuditPeriodsResult;
   auditEvents: AuditEvents;
 }
 
 type Judgement = { verdict: Verdict; reason: string; paths?: string[] };
 
 const days = (count: number) => `${count} ${count === 1 ? 'day' : 'days'}`;
+/** How long Intune has left the rule alone, in words for the User. */
+const unchangedFor = (period: AuditPeriod) =>
+  `Intune has not changed the policies that set this rule, or their assignments, for ${period.atLeast ? 'at least ' : ''}${days(period.days)}`;
 const paths = (count: number) => `${count} ${count === 1 ? 'path' : 'paths'}`;
 
 /** Whether Intune puts the rule in Audit mode: if so, a note when only some groups are; if not, why not. */
@@ -108,9 +111,9 @@ function unsafeApplication(events: RuleAuditEvents): string | null {
 }
 
 function judgeEvents(rule: AsrRule, events: RuleAuditEvents, period: AuditPeriod): Judgement {
-  const auditFor = `In Audit mode for at least ${days(period.shortestDays)} on every device that reports it`;
+  const auditFor = unchangedFor(period);
   if (events.events === 0) {
-    return { verdict: 'Ready to block', reason: `${auditFor}, with no Audit events in the last ${OBSERVATION_WINDOW_DAYS} days.` };
+    return { verdict: 'Ready to block', reason: `${auditFor}, and there are no Audit events in the last ${OBSERVATION_WINDOW_DAYS} days.` };
   }
   if (!events.complete) {
     return {
@@ -148,27 +151,20 @@ function judge(rule: AsrRule, state: RuleState, coverage: VerdictCoverage | null
   if (!coverage || coverage.auditDevices === 0) {
     return { verdict: 'No evidence', reason: `No device reports this rule in Audit mode.${mode.note}` };
   }
-  if (!input.auditPeriods) {
+  if (auditPeriodsFailed(input.auditPeriods)) {
     return {
       verdict: 'No evidence',
-      reason: `How long this rule has been in Audit mode cannot be measured yet, so the Minimum audit period of ${MINIMUM_AUDIT_PERIOD_DAYS} days cannot be checked.${mode.note}`,
+      reason: `The Intune audit log could not be read, so the Audit period is not known: ${input.auditPeriods.failed}${mode.note}`,
     };
   }
-  // The Audit period must speak for every device Coverage counts in Audit mode.
   const period = input.auditPeriods[rule.guid];
-  if (!period || period.devices === 0) {
+  if (!period) {
     return { verdict: 'No evidence', reason: `The Audit period of this rule is not known.${mode.note}` };
   }
-  if (period.devices < coverage.auditDevices) {
+  if (period.days < MINIMUM_AUDIT_PERIOD_DAYS) {
     return {
       verdict: 'No evidence',
-      reason: `An Audit period is known for only ${period.devices} of the ${coverage.auditDevices} devices that report this rule in Audit mode.${mode.note}`,
-    };
-  }
-  if (period.shortestDays < MINIMUM_AUDIT_PERIOD_DAYS) {
-    return {
-      verdict: 'No evidence',
-      reason: `In Audit mode for only ${days(period.shortestDays)} on some devices; the Minimum audit period is ${MINIMUM_AUDIT_PERIOD_DAYS} days.${mode.note}`,
+      reason: `Intune changed a policy that sets this rule, or its assignments, ${days(period.days)} ago; the Minimum audit period is ${MINIMUM_AUDIT_PERIOD_DAYS} days.${mode.note}`,
     };
   }
   const events = input.auditEvents.rules.find((entry) => entry.rule.guid === rule.guid);

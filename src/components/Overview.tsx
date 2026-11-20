@@ -74,7 +74,8 @@ export function OverviewView({ assessments, devices }: { assessments: RuleAssess
             <p className="app-text">
               No ASR rule is ready to move to Block mode yet. A rule is ready when it has been in Audit mode for at least the
               Minimum audit period of {MINIMUM_AUDIT_PERIOD_DAYS} days, and has no Audit events in the last{' '}
-              {OBSERVATION_WINDOW_DAYS} days or only Audit events that can be excluded safely. The Verdicts say why each rule
+              {OBSERVATION_WINDOW_DAYS} days or only Audit events that can be excluded safely. Any change to the Intune
+              policies that set a rule, or to their assignments, starts its Audit period again. The Verdicts say why each rule
               is not ready yet.
             </p>
             <ButtonLink variant="secondary" href={verdicts}>

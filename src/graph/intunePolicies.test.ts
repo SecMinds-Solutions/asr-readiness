@@ -19,8 +19,8 @@ function fakeGraph(pages: Record<string, unknown[]>) {
 describe('fetchIntunePolicies', () => {
   it('reads the settings of every Windows policy and the assignments of those with ASR rules', async () => {
     const graph = fakeGraph({
-      '/deviceManagement/configurationPolicies?$select=id,name,platforms': [
-        { id: 'p1', name: 'ASR rules', platforms: 'windows10' },
+      '/deviceManagement/configurationPolicies?$select=id,name,platforms,createdDateTime,lastModifiedDateTime': [
+        { id: 'p1', name: 'ASR rules', platforms: 'windows10', createdDateTime: '2026-01-29T20:51:43Z', lastModifiedDateTime: '2026-01-29T21:23:56Z' },
         { id: 'p2', name: 'Antivirus', platforms: 'windows10' },
         { id: 'p3', name: 'macOS', platforms: 'macOS' },
       ],
@@ -34,6 +34,7 @@ describe('fetchIntunePolicies', () => {
       { id: 'p2', name: 'Antivirus', assignments: [] },
     ]);
     expect(policies[0]?.settings).toHaveLength(1);
+    expect(policies[0]).toMatchObject({ createdDateTime: '2026-01-29T20:51:43Z', lastModifiedDateTime: '2026-01-29T21:23:56Z' });
     for (const [, options] of vi.mocked(graph.getAll).mock.calls) expect(options).toEqual({ version: 'beta' });
     expect(vi.mocked(graph.getAll).mock.calls.map(([path]) => path)).not.toContain('/deviceManagement/configurationPolicies/p2/assignments');
   });
@@ -41,7 +42,7 @@ describe('fetchIntunePolicies', () => {
   it('passes on the assignments as Graph returns them, exclusions included, for the analysis to read', async () => {
     const assignments = [toGroup('g1'), excludingGroup('g2')];
     const graph = fakeGraph({
-      '/deviceManagement/configurationPolicies?$select=id,name,platforms': [{ id: 'p1', name: 'Split', platforms: 'windows10' }],
+      '/deviceManagement/configurationPolicies?$select=id,name,platforms,createdDateTime,lastModifiedDateTime': [{ id: 'p1', name: 'Split', platforms: 'windows10' }],
       '/deviceManagement/configurationPolicies/p1/settings': asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'block')).value,
       '/deviceManagement/configurationPolicies/p1/assignments': assignments,
     });
@@ -50,7 +51,7 @@ describe('fetchIntunePolicies', () => {
 
   it('escapes the policy ID in the path', async () => {
     const graph = fakeGraph({
-      '/deviceManagement/configurationPolicies?$select=id,name,platforms': [{ id: 'a/b', name: 'Odd', platforms: 'windows10' }],
+      '/deviceManagement/configurationPolicies?$select=id,name,platforms,createdDateTime,lastModifiedDateTime': [{ id: 'a/b', name: 'Odd', platforms: 'windows10' }],
       '/deviceManagement/configurationPolicies/a%2Fb/settings': [],
     });
     await expect(fetchIntunePolicies(graph)).resolves.toHaveLength(1);

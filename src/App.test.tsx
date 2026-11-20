@@ -8,7 +8,7 @@ import { DEFAULT_ORIGINS, resolve, type Place } from './places';
 import type { AuthClient } from './auth/msalAuthClient';
 import type { SignedInUser } from './auth/user';
 import { auditEventsFromRows, type AuditEvents } from './analysis/auditEvents';
-import type { AuditPeriods } from './analysis/auditPeriods';
+import type { PolicyChanges } from './analysis/auditPeriods';
 import { asrSettings, choice, toAllDevices } from './analysis/fixtures/intunePolicies';
 import { ruleModesFromPolicies } from './analysis/intuneRuleModes';
 import type { RuleOverview } from './analysis/ruleOverview';
@@ -95,13 +95,17 @@ const emptyOverview: RuleOverview = {
   coverage: { devices: 12, auditDevices: {}, unrecognisedRules: [] },
 };
 
+const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
+/** The Intune audit log of the Observation window, without changes to any policy. */
+const noPolicyChanges = (): PolicyChanges => ({ since: daysAgo(30), changes: [] });
+
 function setup(
   client: AuthClient,
   userRecord: UserRecordClient = fakeUserRecord(),
   checkReadiness: ReadinessCheck = async () => ({ status: 'ready', devices: 12 }),
   loadRuleOverview: () => Promise<RuleOverview> = async () => emptyOverview,
   loadAuditEvents: () => Promise<AuditEvents> = async () => auditEventsFromRows([], []),
-  loadAuditPeriods: () => Promise<AuditPeriods | null> = async () => ({}),
+  loadPolicyChanges: () => Promise<PolicyChanges> = async () => noPolicyChanges(),
 ): SignInSetup {
   return {
     client,
@@ -110,7 +114,7 @@ function setup(
     checkReadiness: vi.fn(checkReadiness),
     loadRuleOverview: vi.fn(loadRuleOverview),
     loadAuditEvents: vi.fn(loadAuditEvents),
-    loadAuditPeriods: vi.fn(loadAuditPeriods),
+    loadPolicyChanges: vi.fn(loadPolicyChanges),
   };
 }
 
@@ -796,7 +800,7 @@ describe('App: pages of the Analysis', () => {
     expect(signIn.checkReadiness).toHaveBeenCalledOnce();
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
     expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
-    expect(signIn.loadAuditPeriods).toHaveBeenCalledOnce();
+    expect(signIn.loadPolicyChanges).toHaveBeenCalledOnce();
   });
 
   it('keeps a part that is still loading when the User moves away and back', async () => {
@@ -821,7 +825,7 @@ describe('App: pages of the Analysis', () => {
     expect(within(status).getByText('Observation window')).toBeInTheDocument();
     fireEvent.click(within(status).getByRole('button', { name: 'Read again' }));
     expect(within(status).getByText('Reading…')).toBeInTheDocument();
-    await waitFor(() => expect(signIn.loadAuditPeriods).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(signIn.loadPolicyChanges).toHaveBeenCalledTimes(2));
     expect(signIn.loadRuleOverview).toHaveBeenCalledTimes(2);
     expect(signIn.loadAuditEvents).toHaveBeenCalledTimes(2);
     expect(signIn.checkReadiness).toHaveBeenCalledOnce();
@@ -877,15 +881,20 @@ describe('App: Verdicts', () => {
   const ADOBE = '7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c';
   const adobeInAudit: RuleOverview = {
     modes: ruleModesFromPolicies([
-      { id: 'p1', name: 'ASR', assignments: [toAllDevices], settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value },
+      {
+        id: 'p1',
+        name: 'ASR',
+        assignments: [toAllDevices],
+        settings: asrSettings(choice('blockadobereaderfromcreatingchildprocesses', 'audit')).value,
+        createdDateTime: daysAgo(90),
+        lastModifiedDateTime: daysAgo(60),
+      },
     ]),
     coverage: { devices: 12, auditDevices: { [ADOBE]: 12 }, unrecognisedRules: [] },
   };
 
-  it('combines the ASR rules, Audit events and Audit periods into a Verdict per rule, each read once', async () => {
-    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => ({
-      [ADOBE]: { devices: 12, shortestDays: 20 },
-    }));
+  it('combines the ASR rules, Audit events and Intune audit log into a Verdict per rule, each read once', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit);
     goTo('/app/verdicts');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
     expect(await screen.findByRole('heading', { name: 'Verdict per ASR rule' })).toBeInTheDocument();
@@ -895,24 +904,23 @@ describe('App: Verdicts', () => {
     expect(within(adobe).getByText('12 of 12 devices')).toBeInTheDocument();
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
     expect(signIn.loadAuditEvents).toHaveBeenCalledOnce();
-    expect(signIn.loadAuditPeriods).toHaveBeenCalledOnce();
+    expect(signIn.loadPolicyChanges).toHaveBeenCalledOnce();
   });
 
-  it('gives No evidence and says why when how long a rule has been in Audit mode cannot be measured', async () => {
-    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => null);
+  it('gives No evidence and says why when Intune changed the policy that sets the rule recently', async () => {
+    const changed = async (): Promise<PolicyChanges> => ({ ...noPolicyChanges(), changes: [{ policyId: 'p1', at: daysAgo(3) }] });
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, changed);
     goTo('/app/verdicts');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
     const verdicts = await screen.findByRole('table', { name: /Verdict, Coverage and reason/ });
     const adobe = within(verdicts).getByRole('cell', { name: 'Block Adobe Reader from creating child processes' }).closest('tr') as HTMLElement;
     expect(within(adobe).getByText('No evidence')).toBeInTheDocument();
     expect(within(adobe).getByText('12 of 12 devices')).toBeInTheDocument();
-    expect(adobe).toHaveTextContent('How long this rule has been in Audit mode cannot be measured yet');
+    expect(adobe).toHaveTextContent('Intune changed a policy that sets this rule, or its assignments, 3 days ago');
   });
 
   it('offers the Suggested policy with the rules that are ready, on its own page', async () => {
-    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => ({
-      [ADOBE]: { devices: 12, shortestDays: 20 },
-    }));
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit);
     goTo('/app/policy');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
     expect(await screen.findByRole('heading', { name: 'Rules the Suggested policy sets to Block mode' })).toBeInTheDocument();
@@ -939,22 +947,31 @@ describe('App: Verdicts', () => {
   });
 
   it('gives no Verdicts when a part could not be read, says which, and lets the User try that part again', async () => {
-    const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, undefined, async () => Promise.reject(new Error('Advanced hunting is throttled.')));
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, undefined, async () => Promise.reject(new Error('Advanced hunting is throttled.')));
     goTo('/app/verdicts');
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('No Verdicts');
-    expect(alert).toHaveTextContent('how long rules have been in Audit mode: Advanced hunting is throttled.');
+    const alert = await alertWith('No Verdicts');
+    expect(alert).toHaveTextContent('the Audit events: Advanced hunting is throttled.');
     expect(screen.queryByRole('heading', { name: 'Verdict per ASR rule' })).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
-    await waitFor(() => expect(signIn.loadAuditPeriods).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(signIn.loadAuditEvents).toHaveBeenCalledTimes(2));
     expect(signIn.loadRuleOverview).toHaveBeenCalledOnce();
   });
 
+  it('still gives the Verdicts when the Intune audit log cannot be read, with No evidence and the reason for rules in Audit mode', async () => {
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () =>
+      Promise.reject(new Error('Microsoft Graph returned more than 50 pages.')),
+    );
+    goTo('/app/verdicts');
+    renderApp(<App signIn={signIn} adminConsentResult={null} />);
+    const verdicts = await screen.findByRole('table', { name: /Verdict, Coverage and reason/ });
+    const adobe = within(verdicts).getByRole('cell', { name: 'Block Adobe Reader from creating child processes' }).closest('tr') as HTMLElement;
+    expect(within(adobe).getByText('No evidence')).toBeInTheDocument();
+    expect(adobe).toHaveTextContent('The Intune audit log could not be read, so the Audit period is not known: Microsoft Graph returned more than 50 pages.');
+  });
+
   it('opens the Verdicts filtered to one Verdict from its tile on the Overview, with counts that match the table', async () => {
-    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit, undefined, async () => ({
-      [ADOBE]: { devices: 12, shortestDays: 20 },
-    }));
+    const signIn = setup(signedIn(), fakeUserRecord(), undefined, async () => adobeInAudit);
     renderApp(<App signIn={signIn} adminConsentResult={null} />);
     const tile = await screen.findByRole('link', { name: /^1 Ready to block/ });
     expect(tile).toHaveTextContent('Coverage 12 of 12 devices');

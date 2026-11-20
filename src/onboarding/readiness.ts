@@ -24,6 +24,8 @@ export type Access = 'allowed' | 'refused';
 
 /** One settings catalog policy ID; Intune configuration policies are only in Graph beta. */
 const INTUNE_CHECK_PATH = '/deviceManagement/configurationPolicies?$top=1&$select=id';
+/** One Intune audit log entry, which the Audit period needs (ADR-0007): it takes Audit data: Read. */
+const AUDIT_LOG_CHECK_PATH = '/deviceManagement/auditEvents?$top=1&$select=id';
 
 type Outcome<T> = { ok: true; value: T } | { ok: false; error: unknown };
 
@@ -48,12 +50,18 @@ function deviceCount(rows: unknown[]): number {
   return row === undefined ? 0 : numberColumn(row, 'Devices');
 }
 
-/** Runs one small advanced hunting query and one light Intune read, in parallel. */
+/** Runs one small advanced hunting query and two light Intune reads, in parallel. */
 export async function checkReadiness(graph: GraphClient): Promise<Readiness> {
-  const [hunting, intune] = await Promise.all([
+  const [hunting, policies, auditLog] = await Promise.all([
     settle(runHuntingQuery(graph, HUNTING_CHECK_QUERY)),
     settle(graph.get<unknown>(INTUNE_CHECK_PATH, { version: 'beta' })),
+    settle(graph.get<unknown>(AUDIT_LOG_CHECK_PATH, { version: 'v1.0' })),
   ]);
+  const intuneReads = [
+    { name: 'Intune', outcome: policies },
+    { name: 'Intune audit log', outcome: auditLog },
+  ];
+  const intuneRefused = intuneReads.flatMap(({ name, outcome }) => (outcome.ok ? [] : [{ name, error: outcome.error }]));
 
   let devices = 0;
   if (hunting.ok) {
@@ -67,21 +75,20 @@ export async function checkReadiness(graph: GraphClient): Promise<Readiness> {
   } else if (!isRefused(hunting.error)) {
     return { status: 'failed', message: `Advanced hunting: ${errorMessage(hunting.error)}` };
   }
-  if (!intune.ok && !isRefused(intune.error)) {
-    return { status: 'failed', message: `Intune: ${errorMessage(intune.error)}` };
-  }
+  const intuneFailed = intuneRefused.find(({ error }) => !isRefused(error));
+  if (intuneFailed) return { status: 'failed', message: `${intuneFailed.name}: ${errorMessage(intuneFailed.error)}` };
 
   // Without onboarded devices, roles do not matter yet: there is nothing to analyse.
   if (hunting.ok && devices === 0) return { status: 'no-devices' };
-  if (hunting.ok && intune.ok) return { status: 'ready', devices };
+  if (hunting.ok && intuneRefused.length === 0) return { status: 'ready', devices };
 
   const details: string[] = [];
   if (!hunting.ok) details.push(`Advanced hunting: ${errorMessage(hunting.error)}`);
-  if (!intune.ok) details.push(`Intune: ${errorMessage(intune.error)}`);
+  for (const { name, error } of intuneRefused) details.push(`${name}: ${errorMessage(error)}`);
   return {
     status: 'access-needed',
     advancedHunting: hunting.ok ? 'allowed' : 'refused',
-    intune: intune.ok ? 'allowed' : 'refused',
+    intune: intuneRefused.length === 0 ? 'allowed' : 'refused',
     details,
   };
 }

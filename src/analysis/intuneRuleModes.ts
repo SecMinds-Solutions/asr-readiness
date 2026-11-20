@@ -11,6 +11,18 @@ export interface IntunePolicy {
   settings: unknown[];
   /** The `value` items of GET /deviceManagement/configurationPolicies/{id}/assignments. */
   assignments: unknown[];
+  /** When the policy was created and last changed, as Graph returns them; assignment changes do not count. */
+  createdDateTime?: unknown;
+  lastModifiedDateTime?: unknown;
+}
+
+/** A policy that holds ASR rules: which rules it sets, in any Rule mode, and when Intune last changed it. */
+export interface AsrPolicy {
+  id: string;
+  /** ASR rule GUIDs the policy sets, whether it is assigned or not. */
+  rules: string[];
+  /** The later of its creation and last change, as an ISO date; null when Graph did not give both. */
+  changedAt: string | null;
 }
 
 /**
@@ -39,10 +51,19 @@ export type RuleState =
 
 export interface RuleModes {
   rules: { rule: AsrRule; state: RuleState }[];
+  /** Every policy that holds ASR rules, for the Audit period. */
+  policies: AsrPolicy[];
   /** Policies with ASR rules that are assigned to nobody, so they configure nothing. */
   unassignedPolicies: string[];
   /** ASR settings this version does not know, so the Analysis can say what it left out. */
   unrecognisedSettings: { policy: string; setting: string }[];
+}
+
+/** The later of a policy's creation and last change, or null when either is missing or not a date. */
+function changedAt(policy: IntunePolicy): string | null {
+  const times = [policy.createdDateTime, policy.lastModifiedDateTime].map((value) => (typeof value === 'string' ? Date.parse(value) : NaN));
+  if (times.some(Number.isNaN)) return null;
+  return new Date(Math.max(...times)).toISOString();
 }
 
 const MODE_BY_SUFFIX: Record<string, RuleMode> = { off: 'Disabled', audit: 'Audit', warn: 'Warn', block: 'Block' };
@@ -120,12 +141,18 @@ function asrRuleSettings(settings: unknown[]): Json[] {
  */
 export function ruleModesFromPolicies(policies: IntunePolicy[]): RuleModes {
   const found = new Map<string, PolicyRuleMode[]>();
+  const asrPolicies: AsrPolicy[] = [];
   const unassignedPolicies: string[] = [];
   const unrecognisedSettings: RuleModes['unrecognisedSettings'] = [];
 
   for (const policy of policies) {
     const ruleSettings = asrRuleSettings(policy.settings);
     if (ruleSettings.length === 0) continue;
+    asrPolicies.push({
+      id: policy.id,
+      rules: ruleSettings.flatMap((setting) => ruleByIntuneSetting(String(setting['settingDefinitionId'] ?? ''))?.guid ?? []),
+      changedAt: changedAt(policy),
+    });
     const targets = assignmentTargets(policy.assignments);
     if (targets.length === 0) {
       unassignedPolicies.push(policy.name);
@@ -146,5 +173,5 @@ export function ruleModesFromPolicies(policies: IntunePolicy[]): RuleModes {
   }
 
   const rules = ASR_RULES.map((rule) => ({ rule, state: ruleState(found.get(rule.guid) ?? []) }));
-  return { rules, unassignedPolicies, unrecognisedSettings };
+  return { rules, policies: asrPolicies, unassignedPolicies, unrecognisedSettings };
 }

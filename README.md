@@ -26,10 +26,12 @@ ready-made Intune policy that you review and deploy yourself.
   ([ADR-0010](docs/adr/0010-website-without-sign-in-or-tracking.md)).
 - **Your security data never leaves your browser.** The analysis runs in the browser with
   your own delegated token; nothing about it is sent to or stored by SecMinds.
-- **Read-only, delegated permissions only:** `ThreatHunting.Read.All` and
-  `DeviceManagementConfiguration.Read.All`, used only while you are signed in and limited
-  to what your own roles allow. The app also has one scope of its own, `UserRecord.ReadWrite`,
-  used only to store your User record with its own backend.
+- **Read-only, delegated permissions only:** `ThreatHunting.Read.All`,
+  `DeviceManagementConfiguration.Read.All` and `DeviceManagementApps.Read.All`, used only while
+  you are signed in and limited to what your own roles allow. The last one is used only to read
+  the Intune audit log, to see when your ASR policies and their assignments last changed. The
+  app also has one scope of its own, `UserRecord.ReadWrite`, used only to store your User
+  record with its own backend.
 - **Sign-in with Microsoft:** you sign in on Microsoft's own sign-in page. Your sign-in tokens
   are kept in the browser tab's session storage and are gone when you close the tab. This
   includes a refresh token (`offline_access`) that renews them while the tab is open. The app
@@ -56,10 +58,10 @@ ready-made Intune policy that you review and deploy yourself.
 - A one-time admin consent for the app in your tenant.
 - For the signed-in User: a Microsoft Defender XDR role with Security data basics (read),
   or the Microsoft Entra role Security Reader, for advanced hunting; and an Intune role with
-  Device configurations: Read, such as Read Only Operator.
+  Device configurations: Read and Audit data: Read, such as Read Only Operator.
 
-After you sign in, ASR Compass checks these with one small advanced hunting query and one
-Intune read, and tells you what is missing.
+After you sign in, ASR Compass checks these with one small advanced hunting query and two
+small Intune reads (a policy and an audit log entry), and tells you what is missing.
 
 MSPs can analyse customer tenants through GDAP.
 

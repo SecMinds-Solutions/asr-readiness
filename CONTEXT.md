@@ -50,7 +50,7 @@ The Verdict for a rule whose audit events are too many, too spread out, or come 
 _Avoid_: too noisy, failed
 
 **No evidence**:
-The Verdict for a rule that is not in Audit mode, or not for the Minimum audit period, so its audit events say nothing yet. This includes a Conflict, a rule no device reports in Audit mode, a rule whose Audit period cannot be measured, and a rule whose audit events advanced hunting does not record.
+The Verdict for a rule that is not in Audit mode, or not for the Minimum audit period, so its audit events say nothing yet. This includes a Conflict, a rule no device reports in Audit mode, a rule whose Audit period is not known, and a rule whose audit events advanced hunting does not record.
 _Avoid_: unknown, no data
 
 **Already blocking**:
@@ -63,7 +63,7 @@ The period of audit events an Analysis looks at: the last 30 days.
 How long a rule's Audit period must be before its absence of events means anything: 14 days.
 
 **Audit period**:
-How long a rule has been in Audit mode. The app has no source for it yet, so a rule in Audit mode gets No evidence until one is chosen. Advanced hunting keeps only each device's latest report of its Rule modes, so it cannot tell.
+How long a rule has been in Audit mode, taken as the time since Intune last changed a policy that sets the rule, or that policy's assignments. Every change counts, because Intune does not record which setting changed. Assignment changes come from the Intune audit log of the Observation window; with no change in it, the Audit period is at least 30 days. Changes to group members and deleted policies are not seen.
 _Avoid_: audit duration, audit age
 
 **User-writable location**:

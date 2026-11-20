@@ -60,7 +60,7 @@ describe('msalConfiguration', () => {
 describe('SIGN_IN_SCOPES', () => {
   it('are exactly the delegated scopes the app registration requests', () => {
     expect([...SIGN_IN_SCOPES].sort()).toEqual(
-      ['DeviceManagementConfiguration.Read.All', 'ThreatHunting.Read.All', 'User.Read', 'email', 'openid', 'profile'].sort(),
+      ['DeviceManagementApps.Read.All', 'DeviceManagementConfiguration.Read.All', 'ThreatHunting.Read.All', 'User.Read', 'email', 'openid', 'profile'].sort(),
     );
   });
 });
@@ -153,7 +153,7 @@ describe('createMsalAuthClient', () => {
     await client.start();
     await expect(client.graphToken()).resolves.toBe('api-token');
     expect(msal.acquireTokenSilent).toHaveBeenCalledWith({ scopes: [...GRAPH_SCOPES], account: msal.active });
-    expect([...GRAPH_SCOPES].sort()).toEqual(['DeviceManagementConfiguration.Read.All', 'ThreatHunting.Read.All']);
+    expect([...GRAPH_SCOPES].sort()).toEqual(['DeviceManagementApps.Read.All', 'DeviceManagementConfiguration.Read.All', 'ThreatHunting.Read.All']);
     expect(GRAPH_SCOPES.every((scope) => SIGN_IN_SCOPES.includes(scope))).toBe(true);
   });
 

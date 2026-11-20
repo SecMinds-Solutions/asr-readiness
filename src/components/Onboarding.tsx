@@ -71,7 +71,7 @@ export function AccessNeededAlert({
         )}
         {intune === 'refused' && (
           <li>
-            <strong>Intune:</strong> an Intune role with Device configurations › Read, such as Read Only Operator, in the
+            <strong>Intune:</strong> an Intune role with Device configurations › Read and Audit data › Read, such as Read Only Operator, in the
             Microsoft Intune admin center under Tenant administration › Roles.
           </li>
         )}

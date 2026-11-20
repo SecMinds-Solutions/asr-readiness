@@ -201,8 +201,8 @@ export function Landing({ adminConsentUrl }: { adminConsentUrl: string | null })
         <ol className="site-steps">
           <Step number={1} title="Check the requirements">
             Microsoft Defender for Endpoint Plan 2 (also in Microsoft 365 E5) and Intune. You need a Defender XDR role with
-            Security data basics (read), or the Entra role Security Reader, and an Intune role with Device configurations: Read,
-            such as Read Only Operator.
+            Security data basics (read), or the Entra role Security Reader, and an Intune role with Device configurations: Read
+            and Audit data: Read, such as Read Only Operator.
           </Step>
           <Step number={2} title="Ask an admin to grant admin consent">
             Once per tenant, an admin who can grant tenant-wide consent approves ASR Compass&apos;s read-only permissions.{' '}
@@ -275,8 +275,8 @@ export function Landing({ adminConsentUrl }: { adminConsentUrl: string | null })
               content: (
                 <p className="app-text">
                   Delegated, read-only Microsoft Graph permissions: ThreatHunting.Read.All for advanced hunting and
-                  DeviceManagementConfiguration.Read.All for Intune policies, plus the basic sign-in permissions and one scope
-                  of its own to store your User record.
+                  DeviceManagementConfiguration.Read.All for Intune policies, DeviceManagementApps.Read.All only for the Intune
+                  audit log, plus the basic sign-in permissions and one scope of its own to store your User record.
                 </p>
               ),
             },
@@ -304,7 +304,9 @@ export function Landing({ adminConsentUrl }: { adminConsentUrl: string | null })
                   From the last {OBSERVATION_WINDOW_DAYS} days of audit events of rules that Intune sets to Audit mode and that
                   have been in Audit mode for at least {MINIMUM_AUDIT_PERIOD_DAYS} days. A rule without audit events is Ready to
                   block; a rule whose audit events come from at most {MAX_SUGGESTED_EXCLUSIONS} paths, none in a User-writable
-                  location and none from an application that runs from one, is Ready with exclusions.
+                  location and none from an application that runs from one, is Ready with exclusions. How long a rule has been
+                  in Audit mode is taken from Intune: any change to the policies that set it, or to their assignments, starts
+                  the count again.
                 </p>
               ),
             },

@@ -7,6 +7,7 @@ import { createAuthClient } from './auth/msalAuthClient';
 import { ThemeContext } from './components/ThemeToggle';
 import { fetchAuditEvents } from './graph/auditEvents';
 import { createGraphClient } from './graph/client';
+import { fetchPolicyChanges } from './graph/policyChanges';
 import { fetchRuleOverview } from './graph/ruleOverview';
 import type { MountOptions } from './main';
 import { NavigationProvider } from './navigation';
@@ -24,9 +25,7 @@ function signInSetup(config: AuthConfig): SignInSetup {
     checkReadiness: createReadinessCheck(graph, () => client.refreshGraphToken()),
     loadRuleOverview: () => fetchRuleOverview(graph),
     loadAuditEvents: () => fetchAuditEvents(graph),
-    // Advanced hunting keeps only each device's latest report of its Rule modes, so it cannot tell how
-    // long a rule has been in Audit mode. Until another source can, no rule reaches a Verdict that needs it.
-    loadAuditPeriods: async () => null,
+    loadPolicyChanges: () => fetchPolicyChanges(graph, new Date()),
   };
 }
 
